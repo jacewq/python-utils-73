@@ -1,26 +1,39 @@
-import { createLogger, transports, format } from 'winston';
-import { DailyRotateFile } from 'winston-daily-rotate-file';
+// Helper function to check if a value is an array
+export function isArray(value: any): value is Array<any> {
+    return Array.isArray(value);
+}
 
-const logger = createLogger({
-    level: 'info',
-    format: format.combine(
-        format.timestamp(),
-        format.printf(({ timestamp, level, message }) => {
-            return `${timestamp} ${level}: ${message}`;
-        })
-    ),
-    transports: [
-        new DailyRotateFile({
-            filename: 'logs/%DATE%-results.log',
-            datePattern: 'YYYY-MM-DD',
-            zippedArchive: true,
-            maxSize: '20m',
-            maxFiles: '14d'
-        }),
-        new transports.Console({
-            format: format.simple()
-        })
-    ]
-});
+// Helper function to flatten an array
+export function flattenArray<T>(arrays: T[][]): T[] {
+    return arrays.reduce((flat: T[], toFlatten: T[]) => {
+        return flat.concat(toFlatten);
+    }, []);
+}
 
-export default logger;
+// Helper function to capitalize the first letter of a string
+export function capitalizeFirstLetter(str: string): string {
+    if (!str) return '';
+    return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
+// Helper function to debounce a function
+export function debounce(func: (...args: any[]) => void, delay: number) {
+    let timeout: NodeJS.Timeout | null;
+    return (...args: any[]) => {
+        if (timeout) clearTimeout(timeout);
+        timeout = setTimeout(() => {
+            func(...args);
+        }, delay);
+    };
+}
+
+// Helper function to format date
+export function formatDate(date: Date, format: string): string {
+    // Implement simple date formatting
+    const options: Intl.DateTimeFormatOptions = {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+    };
+    return new Intl.DateTimeFormat('en-US', options).format(date);
+}
