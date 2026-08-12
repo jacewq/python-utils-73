@@ -1,36 +1,40 @@
-import fs from 'fs';
-import path from 'path';
-import winston from 'winston';
-import 'winston-daily-rotate-file';
+export function memoize<F extends (...args: any[]) => any>(fn: F): F {
+    const cache = new Map<string, ReturnType<F>>();
 
-const logDirectory = path.join(__dirname, 'logs');
-
-if (!fs.existsSync(logDirectory)) {
-    fs.mkdirSync(logDirectory);
+    return function (...args: any[]): ReturnType<F> {
+        const key = JSON.stringify(args);
+        if (cache.has(key)) {
+            return cache.get(key)!;
+        }
+        const result = fn(...args);
+        cache.set(key, result);
+        return result;
+    } as F;
 }
 
-const transport = new winston.transports.DailyRotateFile({
-    filename: path.join(logDirectory, '%DATE%.log'),
-    datePattern: 'YYYY-MM-DD',
-    zippedArchive: true,
-    maxSize: '20m',
-    maxFiles: '14d',
-    level: 'info'
-});
+export function debounce<F extends (...args: any[]) => void>(func: F, wait: number): F {
+    let timeout: NodeJS.Timeout;
+    return function (...args: any[]): void {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => func(...args), wait);
+    } as F;
+}
 
-const logger = winston.createLogger({
-    level: 'info',
-    format: winston.format.combine(
-        winston.format.timestamp(),
-        winston.format.json()
-    ),
-    transports: [transport]
-});
-
-export const log = (message: string) => {
-    logger.info(message);
-};
-
-export const logError = (error: Error) => {
-    logger.error(error.message);
-};
+export function throttle<F extends (...args: any[]) => void>(func: F, limit: number): F {
+    let lastFunc: NodeJS.Timeout;
+    let lastRan: number;
+    return function (...args: any[]): void {
+        const context = this;
+        if (!lastRan) {
+            func.apply(context, args);
+            lastRan = Date.now();
+        }
+        clearTimeout(lastFunc);
+        lastFunc = setTimeout(() => {
+            if ((Date.now() - lastRan) >= limit) {
+                func.apply(context, args);
+                lastRan = Date.now();
+            }
+        }, limit - (Date.now() - lastRan));
+    } as F;
+}
