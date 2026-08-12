@@ -1,40 +1,44 @@
-export function memoize<F extends (...args: any[]) => any>(fn: F): F {
-    const cache = new Map<string, ReturnType<F>>();
-
-    return function (...args: any[]): ReturnType<F> {
-        const key = JSON.stringify(args);
-        if (cache.has(key)) {
-            return cache.get(key)!;
-        }
-        const result = fn(...args);
-        cache.set(key, result);
-        return result;
-    } as F;
+export function isNullOrUndefined(value: any): boolean {
+    return value === null || value === undefined;
 }
 
-export function debounce<F extends (...args: any[]) => void>(func: F, wait: number): F {
-    let timeout: NodeJS.Timeout;
-    return function (...args: any[]): void {
-        clearTimeout(timeout);
-        timeout = setTimeout(() => func(...args), wait);
-    } as F;
+export function deepClone<T>(obj: T): T {
+    return Array.isArray(obj) ? [...obj] : {...obj};
 }
 
-export function throttle<F extends (...args: any[]) => void>(func: F, limit: number): F {
-    let lastFunc: NodeJS.Timeout;
+export function mergeObjects<T extends object>(target: T, source: Partial<T>): T {
+    return Object.assign({}, target, source);
+}
+
+export function flattenArray<T>(arr: T[][]): T[] {
+    return arr.reduce((flat, toFlatten) => flat.concat(toFlatten), []);
+}
+
+export function debounce(fn: Function, delay: number): Function {
+    let timeoutId: NodeJS.Timeout;
+    return function(...args: any[]) {
+        clearTimeout(timeoutId);
+        timeoutId = setTimeout(() => fn.apply(this, args), delay);
+    };
+}
+
+export function throttle(fn: Function, limit: number): Function {
+    let lastFn: NodeJS.Timeout;
     let lastRan: number;
-    return function (...args: any[]): void {
+    return function() {
         const context = this;
+        const args = arguments;
         if (!lastRan) {
-            func.apply(context, args);
+            fn.apply(context, args);
             lastRan = Date.now();
+        } else {
+            clearTimeout(lastFn);
+            lastFn = setTimeout(function() {
+                if (Date.now() - lastRan >= limit) {
+                    fn.apply(context, args);
+                    lastRan = Date.now();
+                }
+            }, limit - (Date.now() - lastRan));
         }
-        clearTimeout(lastFunc);
-        lastFunc = setTimeout(() => {
-            if ((Date.now() - lastRan) >= limit) {
-                func.apply(context, args);
-                lastRan = Date.now();
-            }
-        }, limit - (Date.now() - lastRan));
-    } as F;
+    };
 }
