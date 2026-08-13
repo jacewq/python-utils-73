@@ -1,33 +1,11 @@
-export interface PerformanceData {
-    executionTime: number;
-    memoryUsage: number;
-    cpuLoad: number;
-}
+export interface User {  id: number;  name: string;  email: string;  isActive: boolean;}
 
-export type PerformanceMetrics = {
-    startTime: Date;
-    endTime: Date;
-    data: PerformanceData;
-};
+export interface Post {  id: number;  title: string;  content: string;  authorId: number;}
 
-export function logPerformanceMetrics(metrics: PerformanceMetrics): void {
-    const executionTime = metrics.endTime.getTime() - metrics.startTime.getTime();
-    console.log(`Execution Time: ${executionTime}ms`);
-    console.log(`Memory Usage: ${metrics.data.memoryUsage}MB`);
-    console.log(`CPU Load: ${metrics.data.cpuLoad}%`);
-}
+export interface Comment {  id: number;  postId: number;  content: string;  authorId: number;}
 
-export function optimizePerformance(data: PerformanceData): PerformanceData {
-    const optimizedData = {
-        ...data,
-        executionTime: data.executionTime * 0.9, // simulate optimization
-        memoryUsage: data.memoryUsage * 0.95,
-        cpuLoad: data.cpuLoad * 0.9,
-    };
-    logPerformanceMetrics({
-        startTime: new Date(),
-        endTime: new Date(Date.now() + optimizedData.executionTime),
-        data: optimizedData,
-    });
-    return optimizedData;
-}
+export type ApiResponse<T> = {  success: boolean;  data?: T;  error?: string;};
+
+export type UserRole = 'admin' | 'editor' | 'viewer';
+
+export interface PaginatedResponse<T> {  items: T[];  totalCount: number;  page: number;  pageSize: number;}
