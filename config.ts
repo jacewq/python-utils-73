@@ -1,26 +1,28 @@
-import fs from 'fs';
-import path from 'path';
+enum LogLevel { DEBUG, INFO, WARN, ERROR }
 
 interface Config {
-    [key: string]: any;
+    logLevel: LogLevel;
+    apiEndpoint: string;
+    timeout: number;
 }
 
 const defaultConfig: Config = {
-    host: 'localhost',
-    port: 3000,
-    useHttps: false,
+    logLevel: LogLevel.INFO,
+    apiEndpoint: 'https://api.example.com',
+    timeout: 5000,
 };
 
-const loadConfig = (configFilePath: string): Config => {
-    try {
-        const fullPath = path.resolve(configFilePath);
-        const fileContent = fs.readFileSync(fullPath, 'utf-8');
-        const userConfig: Config = JSON.parse(fileContent);
-        return { ...defaultConfig, ...userConfig };
-    } catch (error) {
-        console.error('Error loading config:', error);
-        return defaultConfig;
-    }
+const validateConfig = (config: Partial<Config>): Config => {
+    return {
+        logLevel: config.logLevel || defaultConfig.logLevel,
+        apiEndpoint: config.apiEndpoint || defaultConfig.apiEndpoint,
+        timeout: config.timeout !== undefined ? config.timeout : defaultConfig.timeout,
+    };
 };
 
-export { loadConfig, defaultConfig };
+const getConfig = (customConfig: Partial<Config>): Config => {
+    const validatedConfig = validateConfig(customConfig);
+    return validatedConfig;
+};
+
+export { LogLevel, Config, getConfig };
