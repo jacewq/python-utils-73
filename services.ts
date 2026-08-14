@@ -1,38 +1,29 @@
-type DataRecord = { id: number; name: string; value: number; };  
+type User = { id: number; name: string; email: string; };
 
-/**  
- * Filters the given records to return only those  
- * that have a value above the specified threshold.  
- *  
- * @param records - An array of DataRecord objects.  
- * @param threshold - The minimum value to filter by.  
- * @returns An array of DataRecord objects that meet the criteria.  
- */  
-function filterRecordsAboveThreshold(records: DataRecord[], threshold: number): DataRecord[] {  
-    return records.filter(record => record.value > threshold);  
-}  
+type ApiResponse<T> = { status: number; data: T; message?: string; };
 
-/**  
- * Sorts the given records in ascending order by their value.  
- *  
- * @param records - An array of DataRecord objects.  
- * @returns A sorted array of DataRecord objects.  
- */  
-function sortRecordsByValue(records: DataRecord[]): DataRecord[] {  
-    return records.slice().sort((a, b) => a.value - b.value);  
-}  
+/**
+ * Fetch user by ID from the API.
+ * @param userId - The ID of the user to fetch.
+ * @returns Promise resolving to an ApiResponse with User data.
+ */
+async function fetchUser(userId: number): Promise<ApiResponse<User>> {
+    const response = await fetch(`https://api.example.com/users/${userId}`);
+    const data = await response.json();
+    return { status: response.status, data: data };  
+}
 
-/**  
- * Groups the given records by their names and sums their values.  
- *  
- * @param records - An array of DataRecord objects.  
- * @returns An object where the keys are names and the values are the summed values.  
- */  
-function groupRecordsByName(records: DataRecord[]): Record<string, number> {  
-    return records.reduce((acc, record) => {  
-        acc[record.name] = (acc[record.name] || 0) + record.value;  
-        return acc;  
-    }, {} as Record<string, number>);  
-}  
-
-export { filterRecordsAboveThreshold, sortRecordsByValue, groupRecordsByName };
+/**
+ * Update user information on the API.
+ * @param user - The user object containing updated information.
+ * @returns Promise resolving to an ApiResponse of the updated User.
+ */
+async function updateUser(user: User): Promise<ApiResponse<User>> {
+    const response = await fetch(`https://api.example.com/users/${user.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(user),
+    });
+    const data = await response.json();
+    return { status: response.status, data: data };
+}
