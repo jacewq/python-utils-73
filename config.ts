@@ -1,28 +1,31 @@
-enum LogLevel { DEBUG, INFO, WARN, ERROR }
-
 interface Config {
-    logLevel: LogLevel;
-    apiEndpoint: string;
-    timeout: number;
+    host: string;
+    port: number;
+    useTls: boolean;
 }
 
 const defaultConfig: Config = {
-    logLevel: LogLevel.INFO,
-    apiEndpoint: 'https://api.example.com',
-    timeout: 5000,
+    host: 'localhost',
+    port: 8080,
+    useTls: false,
 };
 
-const validateConfig = (config: Partial<Config>): Config => {
-    return {
-        logLevel: config.logLevel || defaultConfig.logLevel,
-        apiEndpoint: config.apiEndpoint || defaultConfig.apiEndpoint,
-        timeout: config.timeout !== undefined ? config.timeout : defaultConfig.timeout,
-    };
-};
+/**
+ * Function to get configuration settings.
+ * @returns The configuration settings.
+ */
+function getConfig(): Config {
+    return defaultConfig;
+}
 
-const getConfig = (customConfig: Partial<Config>): Config => {
-    const validatedConfig = validateConfig(customConfig);
-    return validatedConfig;
-};
+/**
+ * Function to update configuration settings.
+ * @param config - The new configuration settings.
+ */
+function updateConfig(config: Config): void {
+    // Here we could add logic to update the configurations
+    // with specifics like saving to a file or an environment variable
+    console.log('Configuration updated:', config);
+}
 
-export { LogLevel, Config, getConfig };
+export { getConfig, updateConfig, Config };
