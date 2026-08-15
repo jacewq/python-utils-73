@@ -1,29 +1,30 @@
-type User = { id: number; name: string; email: string; };
+type ServiceResponse<T> = { data?: T; error?: string; };
 
-type ApiResponse<T> = { status: number; data: T; message?: string; };
-
-/**
- * Fetch user by ID from the API.
- * @param userId - The ID of the user to fetch.
- * @returns Promise resolving to an ApiResponse with User data.
- */
-async function fetchUser(userId: number): Promise<ApiResponse<User>> {
-    const response = await fetch(`https://api.example.com/users/${userId}`);
-    const data = await response.json();
-    return { status: response.status, data: data };  
+async function fetchData<T>(url: string): Promise<ServiceResponse<T>> {
+    try {
+        const response = await fetch(url);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data: T = await response.json();
+        return { data };
+    } catch (error) {
+        return { error: error instanceof Error ? error.message : 'Unknown error' };
+    }
 }
 
-/**
- * Update user information on the API.
- * @param user - The user object containing updated information.
- * @returns Promise resolving to an ApiResponse of the updated User.
- */
-async function updateUser(user: User): Promise<ApiResponse<User>> {
-    const response = await fetch(`https://api.example.com/users/${user.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(user),
-    });
-    const data = await response.json();
-    return { status: response.status, data: data };
+async function processUserData(userId: string): Promise<ServiceResponse<User>> {
+    const url = `https://api.example.com/users/${userId}`;
+    return await fetchData<User>(url);
 }
+
+async function handleUserRequest(userId: string): Promise<void> {
+    const result = await processUserData(userId);
+    if (result.error) {
+        console.error('Error fetching user data:', result.error);
+        return;
+    }
+    console.log('User data:', result.data);
+}
+
+handleUserRequest('1234');
