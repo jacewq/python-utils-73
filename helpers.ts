@@ -1,6 +1,33 @@
+export function isArray(item: any): item is any[] {
+    return Array.isArray(item);
+}
+
+export function isString(item: any): item is string {
+    return typeof item === 'string';
+}
+
+export function isNumber(item: any): item is number {
+    return typeof item === 'number';
+}
+
+export function deepClone<T>(obj: T): T {
+    return JSON.parse(JSON.stringify(obj));
+}
+
+export function mergeObjects<T extends object, U extends object>(
+    target: T,
+    source: U
+): T & U {
+    return Object.assign({}, target, source);
+}
+
+export function randomInt(min: number, max: number): number {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
 export function debounce(func: Function, delay: number) {
     let timeoutId: NodeJS.Timeout;
-    return function (...args: any[]) {
+    return function(...args: any[]) {
         if (timeoutId) {
             clearTimeout(timeoutId);
         }
@@ -8,37 +35,4 @@ export function debounce(func: Function, delay: number) {
             func.apply(this, args);
         }, delay);
     };
-}
-
-export function throttle(func: Function, limit: number) {
-    let lastFunc: NodeJS.Timeout;
-    let lastRan: number;
-    return function () {
-        const context = this;
-        const args = arguments;
-        if (!lastRan) {
-            func.apply(context, args);
-            lastRan = Date.now();
-        } else {
-            clearTimeout(lastFunc);
-            lastFunc = setTimeout(function () {
-                if ((Date.now() - lastRan) >= limit) {
-                    func.apply(context, args);
-                    lastRan = Date.now();
-                }
-            }, limit - (Date.now() - lastRan));
-        }
-    };
-}
-
-export function randomInt(min: number, max: number): number {
-    return Math.floor(Math.random() * (max - min + 1)) + min;
-}
-
-export function formatDate(date: Date, format: string): string {
-    const options: Intl.DateTimeFormatOptions = {};
-    if (format.includes('YYYY')) options.year = 'numeric';
-    if (format.includes('MM')) options.month = '2-digit';
-    if (format.includes('DD')) options.day = '2-digit';
-    return new Intl.DateTimeFormat('en-US', options).format(date);
 }
