@@ -1,42 +1,41 @@
-type ErrorCode = 'NOT_FOUND' | 'INVALID_INPUT' | 'SERVER_ERROR';
+// TypeScript helper functions with error handling
 
-class CustomError extends Error {
-    code: ErrorCode;
-    constructor(message: string, code: ErrorCode) {
-        super(message);
-        this.code = code;
-    }
-}
-
-function handleError(error: unknown): string {
-    if (error instanceof CustomError) {
-        return `Error: ${error.message}, Code: ${error.code}`;
-    }
-    return 'An unexpected error occurred.';
-}
-
-function fetchData(url: string): Promise<string> {
-    return new Promise((resolve, reject) => {
-        // Simulating a fetch call
-        setTimeout(() => {
-            const isError = Math.random() < 0.5;
-            if (isError) {
-                reject(new CustomError('Failed to fetch data', 'SERVER_ERROR'));
-            } else {
-                resolve('Data fetched successfully');
-            }
-        }, 1000);
-    });
-}
-
-async function main() {
+// A utility function to parse JSON safely
+export function safeJsonParse<T>(jsonString: string): T | null {
     try {
-        const data = await fetchData('https://api.example.com/data');
-        console.log(data);
+        return JSON.parse(jsonString);
     } catch (error) {
-        const errorMessage = handleError(error);
-        console.error(errorMessage);
+        console.error('Invalid JSON string:', error);
+        return null;
     }
 }
 
-main();
+// A function that divides two numbers with error handling
+type DivisionResult = { result: number; error: string | null };
+
+export function safeDivide(dividend: number, divisor: number): DivisionResult {
+    if (divisor === 0) {
+        return { result: 0, error: 'Division by zero is not allowed' };
+    }
+    return { result: dividend / divisor, error: null };
+}
+
+// Function to read a file and return its content with error handling
+export async function readFileSafe(filePath: string): Promise<string | null> {
+    const fs = require('fs').promises;
+    try {
+        return await fs.readFile(filePath, 'utf8');
+    } catch (error) {
+        console.error('Error reading file:', error);
+        return null;
+    }
+}
+
+// A utility function to validate parameters
+export function validateParams(params: object): boolean {
+    if (typeof params !== 'object' || params === null) {
+        console.error('Invalid parameters: must be a non-null object');
+        return false;
+    }
+    return true;
+}
