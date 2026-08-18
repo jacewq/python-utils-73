@@ -1,41 +1,24 @@
-// TypeScript helper functions with error handling
+import * as winston from 'winston';
+import 'winston-daily-rotate-file';
 
-// A utility function to parse JSON safely
-export function safeJsonParse<T>(jsonString: string): T | null {
-    try {
-        return JSON.parse(jsonString);
-    } catch (error) {
-        console.error('Invalid JSON string:', error);
-        return null;
-    }
-}
+const transport = new winston.transports.DailyRotateFile({
+  filename: '%DATE%.log',
+  datePattern: 'YYYY-MM-DD',
+  zippedArchive: true,
+  maxSize: '20m',
+  maxFiles: '14d',
+  dirname: 'logs',
+});
 
-// A function that divides two numbers with error handling
-type DivisionResult = { result: number; error: string | null };
+const logger = winston.createLogger({
+  level: 'info',
+  format: winston.format.combine(
+    winston.format.timestamp(),
+    winston.format.printf(({ timestamp, level, message }) => {
+      return `${timestamp} ${level}: ${message}`;
+    })
+  ),
+  transports: [transport],
+});
 
-export function safeDivide(dividend: number, divisor: number): DivisionResult {
-    if (divisor === 0) {
-        return { result: 0, error: 'Division by zero is not allowed' };
-    }
-    return { result: dividend / divisor, error: null };
-}
-
-// Function to read a file and return its content with error handling
-export async function readFileSafe(filePath: string): Promise<string | null> {
-    const fs = require('fs').promises;
-    try {
-        return await fs.readFile(filePath, 'utf8');
-    } catch (error) {
-        console.error('Error reading file:', error);
-        return null;
-    }
-}
-
-// A utility function to validate parameters
-export function validateParams(params: object): boolean {
-    if (typeof params !== 'object' || params === null) {
-        console.error('Invalid parameters: must be a non-null object');
-        return false;
-    }
-    return true;
-}
+export default logger;
