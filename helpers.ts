@@ -1,24 +1,21 @@
-import * as winston from 'winston';
-import 'winston-daily-rotate-file';
+type User = { id: number; name: string; email: string; };
 
-const transport = new winston.transports.DailyRotateFile({
-  filename: '%DATE%.log',
-  datePattern: 'YYYY-MM-DD',
-  zippedArchive: true,
-  maxSize: '20m',
-  maxFiles: '14d',
-  dirname: 'logs',
-});
+function formatDate(date: Date): string {
+    const options: Intl.DateTimeFormatOptions = {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+    };
+    return date.toLocaleDateString('en-US', options);
+}
 
-const logger = winston.createLogger({
-  level: 'info',
-  format: winston.format.combine(
-    winston.format.timestamp(),
-    winston.format.printf(({ timestamp, level, message }) => {
-      return `${timestamp} ${level}: ${message}`;
-    })
-  ),
-  transports: [transport],
-});
+function isEmailValid(email: string): boolean {
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    return emailRegex.test(email);
+}
 
-export default logger;
+function getUserDisplayName(user: User): string {
+    return `${user.name} <${user.email}>`;
+}
+
+export { formatDate, isEmailValid, getUserDisplayName, User };
