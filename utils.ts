@@ -1,34 +1,26 @@
-function isObject(value: any): value is Record<string, any> {
-    return value !== null && typeof value === 'object';
-}
-
-function mergeObjects<T extends Record<string, any>>(target: T, source: Partial<T>): T {
-    for (const key in source) {
-        if (source.hasOwnProperty(key)) {
-            if (isObject(source[key]) && isObject(target[key])) {
-                target[key] = mergeObjects(target[key], source[key]); // Recursive merge
-            } else {
-                target[key] = source[key]; // Direct assignment
+export async function retry<T>(fn: () => Promise<T>, retries: number = 3, delay: number = 1000): Promise<T> {
+    for (let i = 0; i < retries; i++) {
+        try {
+            return await fn();
+        } catch (error) {
+            if (i === retries - 1) {
+                throw error; // rethrow last error
             }
+            console.warn(`Attempt ${i + 1} failed. Retrying in ${delay}ms...`);
+            await new Promise(resolve => setTimeout(resolve, delay));
         }
     }
-    return target;
 }
 
-function deepClone<T>(obj: T): T {
-    return JSON.parse(JSON.stringify(obj));
+// Example usage:
+/* 
+async function fetchData() {
+    // Simulated network operation
 }
 
-function flattenObject(obj: Record<string, any>, parentKey: string = '', result: Record<string, any> = {}): Record<string, any> {
-    for (const key in obj) {
-        const newKey = parentKey ? `${parentKey}.${key}` : key;
-        if (isObject(obj[key])) {
-            flattenObject(obj[key], newKey, result);
-        } else {
-            result[newKey] = obj[key];
-        }
-    }
-    return result;
-}
-
-export { mergeObjects, deepClone, flattenObject };
+retry(fetchData, 5, 2000).then(data => {
+    console.log('Data fetched:', data);
+}).catch(error => {
+    console.error('Failed to fetch data:', error);
+}); 
+*/
