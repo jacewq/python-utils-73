@@ -1,1 +1,13 @@
-type Config = {\n    host: string;\n    port: number;\n    useHttps: boolean;\n    timeout: number;\n};\n\nconst defaultConfig: Config = {\n    host: 'localhost',\n    port: 8080,\n    useHttps: false,\n    timeout: 5000,\n};\n\nfunction loadConfig(customConfig?: Partial<Config>): Config {\n    return {\n        ...defaultConfig,\n        ...customConfig,\n    };\n}\n\n// Example of loading a custom configuration\nconst customConfig = loadConfig({ port: 3000, useHttps: true });\n\nexport { loadConfig, defaultConfig, Config };\n
+export interface Config {
+    apiUrl: string;
+    port: number;
+    env: 'development' | 'production' | 'testing';
+}
+
+const config: Config = {
+    apiUrl: process.env.API_URL || 'http://localhost:3000',
+    port: Number(process.env.PORT) || 3000,
+    env: (process.env.NODE_ENV as 'development' | 'production' | 'testing') || 'development',
+};
+
+export default config;
