@@ -1,26 +1,34 @@
-export async function retry<T>(fn: () => Promise<T>, retries: number = 3, delay: number = 1000): Promise<T> {
-    for (let i = 0; i < retries; i++) {
-        try {
-            return await fn();
-        } catch (error) {
-            if (i === retries - 1) {
-                throw error; // rethrow last error
-            }
-            console.warn(`Attempt ${i + 1} failed. Retrying in ${delay}ms...`);
-            await new Promise(resolve => setTimeout(resolve, delay));
-        }
-    }
-}
+type DataType<T> = { [key: string]: T }; 
 
-// Example usage:
-/* 
-async function fetchData() {
-    // Simulated network operation
-}
+/**  
+ * Merges two objects of the same shape into one. 
+ * Properties from the second object will overwrite the first.  
+ * @param a - first object  
+ * @param b - second object  
+ * @returns a new object that is the merge of a and b  
+ */  
+function mergeObjects<T>(a: DataType<T>, b: DataType<T>): DataType<T> {  
+    return { ...a, ...b };  
+}  
 
-retry(fetchData, 5, 2000).then(data => {
-    console.log('Data fetched:', data);
-}).catch(error => {
-    console.error('Failed to fetch data:', error);
-}); 
-*/
+/**  
+ * Clones a deep copy of an object.  
+ * @param obj - object to clone  
+ * @returns a new object that is a deep copy of the original  
+ */  
+function deepClone<T>(obj: T): T {  
+    return JSON.parse(JSON.stringify(obj));  
+}  
+
+/**  
+ * Filters an array of objects by a specific key value.  
+ * @param arr - array to filter  
+ * @param key - key in the object to match  
+ * @param value - value to match against  
+ * @returns filtered array of objects  
+ */  
+function filterByKeyValue<T>(arr: T[], key: keyof T, value: any): T[] {  
+    return arr.filter(item => item[key] === value);  
+}  
+
+export { mergeObjects, deepClone, filterByKeyValue };
