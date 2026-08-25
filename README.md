@@ -1,17 +1,16 @@
 # python-utils-73
 
-A collection of versatile utility functions for Python developers. This project aims to streamline common tasks, making it easier to focus on the core logic of your applications.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+python-utils-73 is a TypeScript library offering a set of utility functions modeled after Python's standard library. It enables developers to use familiar iteration, collection, and data handling patterns directly in their TypeScript projects with complete type definitions.
 
 ## Features
-
-- **String Manipulation**: Functions for efficient string formatting, trimming, and splitting that save developers from writing repetitive code.
-- **Date and Time Helpers**: Convenient date manipulation functions, including formatting and parsing, to simplify working with timestamps and time zones.
-- **File Handling Functions**: Easy-to-use utilities for reading, writing, and managing files, enabling streamlined file operations in various formats.
-- **Data Validation**: A robust suite of validation functions to check input data types and formats, ensuring data integrity across your applications.
+- Provides `range`, `enumerate`, and `zip` functions for efficient iterable processing with full TypeScript generics.
+- Includes object utilities for deep cloning and merging that replicate Python dict behaviors.
+- Offers string formatting tools including template and format functions for readable string construction.
+- Supports lazy collection operations to optimize performance when working with large datasets.
 
 ## Installation
-
-To get started, you can install the package directly from npm. Run the following command in your terminal:
 
 ```bash
 npm install python-utils-73
@@ -19,26 +18,10 @@ npm install python-utils-73
 
 ## Basic Usage
 
-Here’s a quick example to demonstrate how to use some of the utilities in this project. First, ensure that you have imported the required functions:
-
 ```typescript
-import { formatDate, isValidEmail } from 'python-utils-73';
+import { range, enumerate, zip } from 'python-utils-73';
 
-// Example of formatting a date
-const date = new Date();
-const formattedDate = formatDate(date, 'YYYY-MM-DD');
-console.log(`Formatted Date: ${formattedDate}`);
-
-// Example of validating an email address
-const email = 'example@domain.com';
-const isValid = isValidEmail(email);
-console.log(`Is valid email: ${isValid}`);
+const numbers = Array.from(range(0, 10, 2)); // [0, 2, 4, 6, 8]
+const indexed = Array.from(enumerate(['apple', 'banana']));
+const zipped = Array.from(zip([1, 2, 3], ['one', 'two', 'three']));
 ```
-
-By leveraging these utilities, you can significantly reduce the complexity of your code and enhance its readability.
-
-![License](https://img.shields.io/badge/license-MIT-green)
-
----
-
-For more details on the available functions and their usage, please refer to the documentation in the repository. Contributions are welcome!
