@@ -1,40 +1,63 @@
-export function memoize<T extends (...args: any[]) => any>(fn: T): T {
-    const cache: { [key: string]: ReturnType<T> } = {};
-    return function (...args: Parameters<T>): ReturnType<T> {
-        const key = JSON.stringify(args);
-        if (cache[key]) {
-            return cache[key];
-        }
-        const result = fn(...args);
-        cache[key] = result;
-        return result;
-    } as T;
+export function debounce<T extends (...args: any[]) => any>(func: T, wait: number): (...args: Parameters<T>) => void {
+  let timeout: ReturnType<typeof setTimeout>;
+  return (...args: Parameters<T>) => {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func(...args), wait);
+  };
 }
 
-export function debounce<T extends (...args: any[]) => void>(func: T, wait: number): T {
-    let timeout: NodeJS.Timeout;
-    return function (...args: Parameters<T>): void {
-        const context = this;
-        clearTimeout(timeout);
-        timeout = setTimeout(() => func.apply(context, args), wait);
-    } as T;
+export function throttle<T extends (...args: any[]) => any>(func: T, limit: number): (...args: Parameters<T>) => void {
+  let inThrottle: boolean;
+  return (...args: Parameters<T>) => {
+    if (!inThrottle) {
+      func(...args);
+      inThrottle = true;
+      setTimeout(() => (inThrottle = false), limit);
+    }
+  };
 }
 
-export function throttle<T extends (...args: any[]) => void>(func: T, limit: number): T {
-    let lastFunc: NodeJS.Timeout;
-    let lastRan: number;
-    return function (...args: Parameters<T>): void {
-        const context = this;
-        if (!lastRan) {
-            func.apply(context, args);
-            lastRan = Date.now();
-        }
-        clearTimeout(lastFunc);
-        lastFunc = setTimeout(() => {
-            if ((Date.now() - lastRan) >= limit) {
-                func.apply(context, args);
-                lastRan = Date.now();
-            }
-        }, limit - (Date.now() - lastRan));
-    } as T;
+export function deepClone<T>(obj: T): T {
+  if (obj === null || typeof obj !== "object") {
+    return obj;
+  }
+  if (Array.isArray(obj)) {
+    return obj.map((item) => deepClone(item)) as unknown as T;
+  }
+  const clonedObj: any = {};
+  for (const key in obj) {
+    if (Object.prototype.hasOwnProperty.call(obj, key)) {
+      clonedObj[key] = deepClone((obj as any)[key]);
+    }
+  }
+  return clonedObj;
+}
+
+export function groupBy<T>(array: T[], key: keyof T): Record<string, T[]> {
+  return array.reduce((acc, item) => {
+    const groupKey = String(item[key]);
+    if (!acc[groupKey]) {
+      acc[groupKey] = [];
+    }
+    acc[groupKey].push(item);
+    return acc;
+  }, {} as Record<string, T[]>);
+}
+
+export function isValidEmail(email: string): boolean {
+  const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return re.test(email);
+}
+
+export function capitalize(str: string): string {
+  if (!str) return str;
+  return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+}
+
+export function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+export function unique<T>(array: T[]): T[] {
+  return [...new Set(array)];
 }
