@@ -1,29 +1,64 @@
-import { Request, Response } from 'express';
-import { getData, postData } from './utils';
+// Configuration loader with defaults from environment and overrides
 
-export const fetchData = async (req: Request, res: Response) => {
-    try {
-        const data = await getData(req.params.id);
-        res.status(200).json(data);
-    } catch (error) {
-        res.status(500).json({ error: 'Failed to fetch data' });
-    }
+interface Config {
+  port: number;
+  host: string;
+  debug: boolean;
+  maxConnections: number;
+  timeout: number;
+}
+
+const DEFAULTS: Config = {
+  port: 8080,
+  host: '0.0.0.0',
+  debug: false,
+  maxConnections: 100,
+  timeout: 30000
 };
 
-export const createData = async (req: Request, res: Response) => {
-    try {
-        const newData = await postData(req.body);
-        res.status(201).json(newData);
-    } catch (error) {
-        res.status(400).json({ error: 'Failed to create data' });
-    }
-};
+export class ConfigService {
+  private loadedConfig: Config;
 
-export const updateData = async (req: Request, res: Response) => {
-    try {
-        const updatedData = await postData(req.body, req.params.id);
-        res.status(200).json(updatedData);
-    } catch (error) {
-        res.status(400).json({ error: 'Failed to update data' });
+  constructor(customConfig: Partial<Config> = {}) {
+    this.loadedConfig = this.mergeConfigs(customConfig);
+  }
+
+  private mergeConfigs(custom: Partial<Config>): Config {
+    const envOverrides: Partial<Config> = {};
+
+    const portEnv = process.env.PORT;
+    if (portEnv) {
+      const portNum = parseInt(portEnv, 10);
+      if (!isNaN(portNum) && portNum > 0) envOverrides.port = portNum;
     }
-};
+
+    if (process.env.HOST) envOverrides.host = process.env.HOST;
+
+    const debugEnv = process.env.DEBUG;
+    if (debugEnv !== undefined) {
+      envOverrides.debug = debugEnv.toLowerCase() === 'true' || debugEnv === '1';
+    }
+
+    const maxConnEnv = process.env.MAX_CONNECTIONS;
+    if (maxConnEnv) {
+      const num = parseInt(maxConnEnv, 10);
+      if (!isNaN(num) && num > 0) envOverrides.maxConnections = num;
+    }
+
+    const timeoutEnv = process.env.TIMEOUT;
+    if (timeoutEnv) {
+      const num = parseInt(timeoutEnv, 10);
+      if (!isNaN(num) && num > 0) envOverrides.timeout = num;
+    }
+
+    return { ...DEFAULTS, ...envOverrides, ...custom };
+  }
+
+  getConfig(): Config {
+    return { ...this.loadedConfig };
+  }
+}
+
+export function loadConfiguration(custom: Partial<Config> = {}): Config {
+  return new ConfigService(custom).getConfig();
+}
