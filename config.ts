@@ -1,41 +1,78 @@
-interface AppConfig {
-  env: string; // Application environment setting
-  debug: boolean; // Debug mode flag
-  logLevel: 'debug' | 'info' | 'warn' | 'error'; // Logging configuration
-  maxRetries: number; // Network settings
+export interface AppConfig {
+  apiUrl: string;
+  port: number;
+  maxRetries: number;
   timeoutMs: number;
-  features: { enableCache: boolean; useCompression: boolean; }; // Feature flags
+  logLevel: string;
 }
 
-const defaultConfig: AppConfig = { env: 'development', debug: true, logLevel: 'info', maxRetries: 3, timeoutMs: 10000, features: { enableCache: true, useCompression: false } };
-
-function mergeConfig(base: AppConfig, overrides: Partial<AppConfig>): AppConfig {
-  return { ...base, ...overrides, features: { ...base.features, ...(overrides.features || {}) } };
-}
-
-function validateConfig(config: AppConfig): void {
-  if (config.maxRetries < 0) throw new Error('maxRetries must be non-negative');
-  if (config.timeoutMs <= 0) throw new Error('timeoutMs must be positive');
-  const validLevels = ['debug', 'info', 'warn', 'error'];
-  if (!validLevels.includes(config.logLevel)) throw new Error('Invalid log level');
-}
-
-export class ConfigManager {
-  private config: AppConfig;
-  constructor(initial?: Partial<AppConfig>) {
-    this.config = mergeConfig(defaultConfig, initial || {});
-    validateConfig(this.config);
+export class ConfigError extends Error {
+  constructor(message: string, public readonly field?: string) {
+    super(message);
+    this.name = 'ConfigError';
   }
-  getConfig(): AppConfig {
-    return JSON.parse(JSON.stringify(this.config)); // Return a copy to prevent mutation
-  }
-  setConfig(updates: Partial<AppConfig>): void {
-    const newConfig = mergeConfig(this.config, updates);
-    validateConfig(newConfig);
-    this.config = newConfig;
-  }
-  isDebug(): boolean { return this.config.debug; }
-  getLogLevel(): string { return this.config.logLevel; }
 }
 
-export { AppConfig };
+export function loadConfig(configData: Record<string, string | undefined>): AppConfig {
+  // Handle edge cases like null input
+  if (configData === null || configData === undefined) {
+    throw new ConfigError('Configuration data cannot be null or undefined');
+  }
+
+  // Validate API URL for required and protocol
+  const apiUrl = configData.API_URL;
+  if (!apiUrl || typeof apiUrl !== 'string' || apiUrl.trim().length === 0) {
+    throw new ConfigError('API_URL must be a non-empty string', 'API_URL');
+  }
+  if (!apiUrl.startsWith('http://') && !apiUrl.startsWith('https://')) {
+    throw new ConfigError('API_URL must start with http:// or https://', 'API_URL');
+  }
+
+  // Parse port handling missing and invalid values
+  const portStr = configData.PORT;
+  let port: number = 3000;
+  if (portStr && portStr !== '') {
+    const parsed = parseInt(portStr, 10);
+    if (isNaN(parsed) || parsed <= 0 || parsed > 65535) {
+      throw new ConfigError('PORT must be a valid number between 1 and 65535', 'PORT');
+    }
+    port = parsed;
+  }
+
+  // maxRetries edge case handling for range
+  const retriesStr = configData.MAX_RETRIES;
+  let maxRetries: number = 3;
+  if (retriesStr && retriesStr !== '') {
+    const parsed = parseInt(retriesStr, 10);
+    if (isNaN(parsed) || parsed < 0 || parsed > 10) {
+      throw new ConfigError('MAX_RETRIES must be between 0 and 10', 'MAX_RETRIES');
+    }
+    maxRetries = parsed;
+  }
+
+  // timeout validation for positive values
+  const timeoutStr = configData.TIMEOUT_MS;
+  let timeoutMs: number = 5000;
+  if (timeoutStr && timeoutStr !== '') {
+    const parsed = parseInt(timeoutStr, 10);
+    if (isNaN(parsed) || parsed <= 0) {
+      throw new ConfigError('TIMEOUT_MS must be a positive number', 'TIMEOUT_MS');
+    }
+    timeoutMs = parsed;
+  }
+
+  // logLevel check for valid options
+  const logLevel = (configData.LOG_LEVEL || 'info').toLowerCase();
+  const validLevels = ['error', 'warn', 'info', 'debug'];
+  if (!validLevels.includes(logLevel)) {
+    throw new ConfigError('LOG_LEVEL must be one of: error, warn, info, debug', 'LOG_LEVEL');
+  }
+
+  return {
+    apiUrl: apiUrl.trim(),
+    port,
+    maxRetries,
+    timeoutMs,
+    logLevel
+  };
+}
