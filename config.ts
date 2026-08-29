@@ -1,56 +1,41 @@
-export interface AppConfig {
-  apiUrl: string;
-  timeout: number;
-  maxRetries: number;
-  logLevel: string;
-  enableCache: boolean;
+interface AppConfig {
+  env: string; // Application environment setting
+  debug: boolean; // Debug mode flag
+  logLevel: 'debug' | 'info' | 'warn' | 'error'; // Logging configuration
+  maxRetries: number; // Network settings
+  timeoutMs: number;
+  features: { enableCache: boolean; useCompression: boolean; }; // Feature flags
 }
 
-const DEFAULT_CONFIG: AppConfig = {
-  apiUrl: 'https://api.example.com',
-  timeout: 30000,
-  maxRetries: 3,
-  logLevel: 'info',
-  enableCache: true,
-};
+const defaultConfig: AppConfig = { env: 'development', debug: true, logLevel: 'info', maxRetries: 3, timeoutMs: 10000, features: { enableCache: true, useCompression: false } };
 
-/**
- * Loads configuration by merging provided options with defaults.
- * @param userConfig Partial configuration to override defaults
- * @returns Complete configuration object
- */
-export function loadConfig(userConfig: Partial<AppConfig> = {}): AppConfig {
-  const config: AppConfig = {
-    ...DEFAULT_CONFIG,
-    ...userConfig,
-  };
-
-  // Validate required fields
-  if (!config.apiUrl || config.apiUrl.trim() === '') {
-    throw new Error('API URL cannot be empty');
-  }
-
-  if (config.timeout <= 0) {
-    throw new Error('Timeout must be greater than zero');
-  }
-
-  if (config.maxRetries < 0) {
-    throw new Error('Max retries cannot be negative');
-  }
-
-  // Ensure log level is valid
-  const validLogLevels = ['debug', 'info', 'warn', 'error'];
-  if (!validLogLevels.includes(config.logLevel)) {
-    config.logLevel = DEFAULT_CONFIG.logLevel;
-  }
-
-  return config;
+function mergeConfig(base: AppConfig, overrides: Partial<AppConfig>): AppConfig {
+  return { ...base, ...overrides, features: { ...base.features, ...(overrides.features || {}) } };
 }
 
-// Utility to get config safely
-export function getConfigValue<K extends keyof AppConfig>(
-  config: AppConfig,
-  key: K
-): AppConfig[K] {
-  return config[key];
+function validateConfig(config: AppConfig): void {
+  if (config.maxRetries < 0) throw new Error('maxRetries must be non-negative');
+  if (config.timeoutMs <= 0) throw new Error('timeoutMs must be positive');
+  const validLevels = ['debug', 'info', 'warn', 'error'];
+  if (!validLevels.includes(config.logLevel)) throw new Error('Invalid log level');
 }
+
+export class ConfigManager {
+  private config: AppConfig;
+  constructor(initial?: Partial<AppConfig>) {
+    this.config = mergeConfig(defaultConfig, initial || {});
+    validateConfig(this.config);
+  }
+  getConfig(): AppConfig {
+    return JSON.parse(JSON.stringify(this.config)); // Return a copy to prevent mutation
+  }
+  setConfig(updates: Partial<AppConfig>): void {
+    const newConfig = mergeConfig(this.config, updates);
+    validateConfig(newConfig);
+    this.config = newConfig;
+  }
+  isDebug(): boolean { return this.config.debug; }
+  getLogLevel(): string { return this.config.logLevel; }
+}
+
+export { AppConfig };
