@@ -1,34 +1,39 @@
-type DataType<T> = { [key: string]: T }; 
+export interface RetryOptions {
+  maxRetries: number;
+  baseDelay: number;
+  maxDelay?: number;
+}
 
-/**  
- * Merges two objects of the same shape into one. 
- * Properties from the second object will overwrite the first.  
- * @param a - first object  
- * @param b - second object  
- * @returns a new object that is the merge of a and b  
- */  
-function mergeObjects<T>(a: DataType<T>, b: DataType<T>): DataType<T> {  
-    return { ...a, ...b };  
-}  
+/**
+ * Executes the given async operation, retrying on failure up to maxRetries times.
+ * Uses exponential backoff between attempts.
+ */
+export async function retryNetworkOperation<T>(
+  operation: () => Promise<T>,
+  options: RetryOptions = { maxRetries: 3, baseDelay: 1000 }
+): Promise<T> {
+  const { maxRetries, baseDelay, maxDelay = 10000 } = options;
+  let lastError: any;
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      return await operation();
+    } catch (error) {
+      lastError = error;
+      if (attempt === maxRetries) {
+        break;
+      }
+      // Calculate delay with exponential backoff
+      const delay = Math.min(baseDelay * Math.pow(2, attempt - 1), maxDelay);
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+  }
+  throw lastError;
+}
 
-/**  
- * Clones a deep copy of an object.  
- * @param obj - object to clone  
- * @returns a new object that is a deep copy of the original  
- */  
-function deepClone<T>(obj: T): T {  
-    return JSON.parse(JSON.stringify(obj));  
-}  
-
-/**  
- * Filters an array of objects by a specific key value.  
- * @param arr - array to filter  
- * @param key - key in the object to match  
- * @param value - value to match against  
- * @returns filtered array of objects  
- */  
-function filterByKeyValue<T>(arr: T[], key: keyof T, value: any): T[] {  
-    return arr.filter(item => item[key] === value);  
-}  
-
-export { mergeObjects, deepClone, filterByKeyValue };
+// Example of a network fetch operation that can be retried
+export async function fetchWithRetry(url: string, options?: RequestInit): Promise<Response> {
+  return retryNetworkOperation(
+    () => fetch(url, options),
+    { maxRetries: 5, baseDelay: 500 }
+  );
+}
