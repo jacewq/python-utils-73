@@ -1,78 +1,78 @@
-export interface AppConfig {
-  apiUrl: string;
+interface DatabaseConfig {
+  host: string;
   port: number;
-  maxRetries: number;
-  timeoutMs: number;
-  logLevel: string;
+  name: string;
+  user: string;
+  password: string;
 }
 
-export class ConfigError extends Error {
-  constructor(message: string, public readonly field?: string) {
-    super(message);
-    this.name = 'ConfigError';
-  }
+interface ServerConfig {
+  port: number;
+  host: string;
+  devMode: boolean;
 }
 
-export function loadConfig(configData: Record<string, string | undefined>): AppConfig {
-  // Handle edge cases like null input
-  if (configData === null || configData === undefined) {
-    throw new ConfigError('Configuration data cannot be null or undefined');
-  }
+interface AppConfig {
+  server: ServerConfig;
+  database: DatabaseConfig;
+  appName: string;
+  logLevel: 'debug' | 'info' | 'warn' | 'error';
+}
 
-  // Validate API URL for required and protocol
-  const apiUrl = configData.API_URL;
-  if (!apiUrl || typeof apiUrl !== 'string' || apiUrl.trim().length === 0) {
-    throw new ConfigError('API_URL must be a non-empty string', 'API_URL');
-  }
-  if (!apiUrl.startsWith('http://') && !apiUrl.startsWith('https://')) {
-    throw new ConfigError('API_URL must start with http:// or https://', 'API_URL');
-  }
+const DEFAULT_CONFIG: AppConfig = {
+  server: {
+    port: 8080,
+    host: '0.0.0.0',
+    devMode: false
+  },
+  database: {
+    host: 'localhost',
+    port: 5432,
+    name: 'app_db',
+    user: 'admin',
+    password: 'password'
+  },
+  appName: 'MyApp',
+  logLevel: 'info'
+};
 
-  // Parse port handling missing and invalid values
-  const portStr = configData.PORT;
-  let port: number = 3000;
-  if (portStr && portStr !== '') {
-    const parsed = parseInt(portStr, 10);
-    if (isNaN(parsed) || parsed <= 0 || parsed > 65535) {
-      throw new ConfigError('PORT must be a valid number between 1 and 65535', 'PORT');
-    }
-    port = parsed;
-  }
-
-  // maxRetries edge case handling for range
-  const retriesStr = configData.MAX_RETRIES;
-  let maxRetries: number = 3;
-  if (retriesStr && retriesStr !== '') {
-    const parsed = parseInt(retriesStr, 10);
-    if (isNaN(parsed) || parsed < 0 || parsed > 10) {
-      throw new ConfigError('MAX_RETRIES must be between 0 and 10', 'MAX_RETRIES');
-    }
-    maxRetries = parsed;
-  }
-
-  // timeout validation for positive values
-  const timeoutStr = configData.TIMEOUT_MS;
-  let timeoutMs: number = 5000;
-  if (timeoutStr && timeoutStr !== '') {
-    const parsed = parseInt(timeoutStr, 10);
-    if (isNaN(parsed) || parsed <= 0) {
-      throw new ConfigError('TIMEOUT_MS must be a positive number', 'TIMEOUT_MS');
-    }
-    timeoutMs = parsed;
-  }
-
-  // logLevel check for valid options
-  const logLevel = (configData.LOG_LEVEL || 'info').toLowerCase();
-  const validLevels = ['error', 'warn', 'info', 'debug'];
-  if (!validLevels.includes(logLevel)) {
-    throw new ConfigError('LOG_LEVEL must be one of: error, warn, info, debug', 'LOG_LEVEL');
-  }
-
+/**
+ * Loads the application config from env vars with defaults.
+ * @returns typed AppConfig
+ */
+export function loadConfig(): AppConfig {
   return {
-    apiUrl: apiUrl.trim(),
-    port,
-    maxRetries,
-    timeoutMs,
-    logLevel
+    server: {
+      port: parseInt(process.env.PORT || '8080', 10),
+      host: process.env.HOST || '0.0.0.0',
+      devMode: process.env.DEV === 'true'
+    },
+    database: {
+      host: process.env.DB_HOST || 'localhost',
+      port: parseInt(process.env.DB_PORT || '5432', 10),
+      name: process.env.DB_NAME || 'app_db',
+      user: process.env.DB_USER || 'admin',
+      password: process.env.DB_PASS || 'password'
+    },
+    appName: process.env.APP_NAME || 'MyApp',
+    logLevel: (process.env.LOG_LEVEL as any) || 'info'
   };
+}
+
+/**
+ * Validates config values.
+ * @param config config to check
+ */
+export function validateConfig(config: AppConfig): boolean {
+  return config.server.port > 0 && 
+         config.server.port < 65536 &&
+         config.database.name.length > 0;
+}
+
+/**
+ * Gets a string representation of the config for logging.
+ * @param config the config object
+ */
+export function configToString(config: AppConfig): string {
+  return `App: ${config.appName}, Port: ${config.server.port}, DB: ${config.database.name}`;
 }
