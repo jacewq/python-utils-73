@@ -1,51 +1,38 @@
-/**
- * Utility functions for data transformation and validation.
- */
-
-export type DataValue = string | number | boolean | null | undefined;
-export type DataRecord = Record<string, DataValue>;
+export interface ProcessedData {
+  id: string;
+  value: number;
+}
 
 /**
- * Deep clones a simple record and removes keys with null or undefined values.
+ * Validates the raw input object for the processing loop.
+ * Ensures required fields exist and conform to expected types.
  */
-export function sanitizeRecord(data: DataRecord): DataRecord {
-  const result: DataRecord = {};
-  for (const key in data) {
-    if (Object.prototype.hasOwnProperty.call(data, key)) {
-      const value = data[key];
-      if (value !== null && value !== undefined) {
-        result[key] = value;
-      }
+export function validateInput(data: unknown): data is ProcessedData {
+  if (typeof data !== 'object' || data === null) {
+    return false;
+  }
+
+  const candidate = data as Record<string, unknown>;
+
+  const isIdValid = typeof candidate.id === 'string' && candidate.id.length > 0;
+  const isValueValid = typeof candidate.value === 'number' && Number.isFinite(candidate.value);
+
+  return isIdValid && isValueValid;
+}
+
+/**
+ * Main processing loop wrapper with input validation.
+ */
+export function processBatch(inputs: unknown[]): ProcessedData[] {
+  const results: ProcessedData[] = [];
+
+  for (const item of inputs) {
+    if (validateInput(item)) {
+      results.push(item);
+    } else {
+      console.warn('Skipping invalid input record:', item);
     }
   }
-  return result;
-}
 
-/**
- * Batches an array into smaller chunks for processing.
- */
-export function chunkArray<T>(array: T[], size: number): T[][] {
-  const chunks: T[][] = [];
-  for (let i = 0; i < array.length; i += size) {
-    chunks.push(array.slice(i, i + size));
-  }
-  return chunks;
-}
-
-/**
- * Safely parses JSON string or returns a fallback value.
- */
-export function safeJsonParse<T>(json: string, fallback: T): T {
-  try {
-    return JSON.parse(json) as T;
-  } catch {
-    return fallback;
-  }
-}
-
-/**
- * Type guard to check if input is a non-empty string.
- */
-export function isNonEmptyString(value: unknown): value is string {
-  return typeof value === 'string' && value.trim().length > 0;
+  return results;
 }
