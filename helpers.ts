@@ -1,63 +1,51 @@
-export function debounce<T extends (...args: any[]) => any>(func: T, wait: number): (...args: Parameters<T>) => void {
-  let timeout: ReturnType<typeof setTimeout>;
-  return (...args: Parameters<T>) => {
-    clearTimeout(timeout);
-    timeout = setTimeout(() => func(...args), wait);
-  };
-}
+/**
+ * Utility functions for data transformation and validation.
+ */
 
-export function throttle<T extends (...args: any[]) => any>(func: T, limit: number): (...args: Parameters<T>) => void {
-  let inThrottle: boolean;
-  return (...args: Parameters<T>) => {
-    if (!inThrottle) {
-      func(...args);
-      inThrottle = true;
-      setTimeout(() => (inThrottle = false), limit);
-    }
-  };
-}
+export type DataValue = string | number | boolean | null | undefined;
+export type DataRecord = Record<string, DataValue>;
 
-export function deepClone<T>(obj: T): T {
-  if (obj === null || typeof obj !== "object") {
-    return obj;
-  }
-  if (Array.isArray(obj)) {
-    return obj.map((item) => deepClone(item)) as unknown as T;
-  }
-  const clonedObj: any = {};
-  for (const key in obj) {
-    if (Object.prototype.hasOwnProperty.call(obj, key)) {
-      clonedObj[key] = deepClone((obj as any)[key]);
+/**
+ * Deep clones a simple record and removes keys with null or undefined values.
+ */
+export function sanitizeRecord(data: DataRecord): DataRecord {
+  const result: DataRecord = {};
+  for (const key in data) {
+    if (Object.prototype.hasOwnProperty.call(data, key)) {
+      const value = data[key];
+      if (value !== null && value !== undefined) {
+        result[key] = value;
+      }
     }
   }
-  return clonedObj;
+  return result;
 }
 
-export function groupBy<T>(array: T[], key: keyof T): Record<string, T[]> {
-  return array.reduce((acc, item) => {
-    const groupKey = String(item[key]);
-    if (!acc[groupKey]) {
-      acc[groupKey] = [];
-    }
-    acc[groupKey].push(item);
-    return acc;
-  }, {} as Record<string, T[]>);
+/**
+ * Batches an array into smaller chunks for processing.
+ */
+export function chunkArray<T>(array: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let i = 0; i < array.length; i += size) {
+    chunks.push(array.slice(i, i + size));
+  }
+  return chunks;
 }
 
-export function isValidEmail(email: string): boolean {
-  const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return re.test(email);
+/**
+ * Safely parses JSON string or returns a fallback value.
+ */
+export function safeJsonParse<T>(json: string, fallback: T): T {
+  try {
+    return JSON.parse(json) as T;
+  } catch {
+    return fallback;
+  }
 }
 
-export function capitalize(str: string): string {
-  if (!str) return str;
-  return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
-}
-
-export function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-export function unique<T>(array: T[]): T[] {
-  return [...new Set(array)];
+/**
+ * Type guard to check if input is a non-empty string.
+ */
+export function isNonEmptyString(value: unknown): value is string {
+  return typeof value === 'string' && value.trim().length > 0;
 }
