@@ -1,38 +1,61 @@
-export interface ProcessedData {
-  id: string;
-  value: number;
+import * as fs from 'fs';
+import * as path from 'path';
+
+export interface LoggerOptions {
+  logDir: string;
+  maxSizeBytes?: number;
+  maxFiles?: number;
+  prefix?: string;
 }
 
-/**
- * Validates the raw input object for the processing loop.
- * Ensures required fields exist and conform to expected types.
- */
-export function validateInput(data: unknown): data is ProcessedData {
-  if (typeof data !== 'object' || data === null) {
-    return false;
+export class RotatingLogger {
+  private logDir: string;
+  private maxSizeBytes: number;
+  private maxFiles: number;
+  private prefix: string;
+  private currentFilePath: string;
+
+  constructor(options: LoggerOptions) {
+    this.logDir = options.logDir;
+    this.maxSizeBytes = options.maxSizeBytes ?? 1024 * 1024;
+    this.maxFiles = options.maxFiles ?? 5;
+    this.prefix = options.prefix ?? 'app';
+    this.currentFilePath = path.join(this.logDir, `${this.prefix}.log`);
+    this.ensureDirectoryExists();
   }
 
-  const candidate = data as Record<string, unknown>;
-
-  const isIdValid = typeof candidate.id === 'string' && candidate.id.length > 0;
-  const isValueValid = typeof candidate.value === 'number' && Number.isFinite(candidate.value);
-
-  return isIdValid && isValueValid;
-}
-
-/**
- * Main processing loop wrapper with input validation.
- */
-export function processBatch(inputs: unknown[]): ProcessedData[] {
-  const results: ProcessedData[] = [];
-
-  for (const item of inputs) {
-    if (validateInput(item)) {
-      results.push(item);
-    } else {
-      console.warn('Skipping invalid input record:', item);
+  private ensureDirectoryExists(): void {
+    if (!fs.existsSync(this.logDir)) {
+      fs.mkdirSync(this.logDir, { recursive: true });
     }
   }
 
-  return results;
+  private rotateLogsIfNeeded(): void {
+    if (!fs.existsSync(this.currentFilePath)) return;
+
+    const stats = fs.statSync(this.currentFilePath);
+    if (stats.size < this.maxSizeBytes) return;
+
+    const oldestFile = path.join(this.logDir, `${this.prefix}.${this.maxFiles}.log`);
+    if (fs.existsSync(oldestFile)) {
+      fs.unlinkSync(oldestFile);
+    }
+
+    for (let i = this.maxFiles - 1; i >= 1; i--) {
+      const src = path.join(this.logDir, `${this.prefix}.${i}.log`);
+      const dest = path.join(this.logDir, `${this.prefix}.${i + 1}.log`);
+      if (fs.existsSync(src)) {
+        fs.renameSync(src, dest);
+      }
+    }
+
+    fs.renameSync(this.currentFilePath, path.join(this.logDir, `${this.prefix}.1.log`));
+  }
+
+  public log(message: string, level: 'INFO' | 'WARN' | 'ERROR' = 'INFO'): void {
+    this.rotateLogsIfNeeded();
+    const timestamp = new Date().toISOString();
+    const formattedMessage = `[${timestamp}] [${level}] ${message}\n`;
+    fs.appendFileSync(this.currentFilePath, formattedMessage, 'utf-8');
+  }
 }
