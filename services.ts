@@ -1,70 +1,71 @@
-export interface Result<T> {
-  success: boolean;
-  data?: T;
-  error?: string;
-}
+export class SafeParsingService {
+  /**
+   * Safely retrieves a deeply nested value from an object structure.
+   * Handles edge cases like null, undefined, or invalid path strings.
+   */
+  public static getNestedValue<T = unknown>(
+    obj: Record<string, any> | null | undefined,
+    path: string,
+    defaultValue?: T
+  ): T | undefined {
+    if (!obj || typeof obj !== 'object') {
+      return defaultValue;
+    }
 
-export class Services {
-  // Process data handling edge cases
-  process(input: any): Result<any> {
-    if (input == null) {  // covers null and undefined
-      return { success: false, error: 'Input is null or undefined' };
-    }
-    if (typeof input !== 'object' || Array.isArray(input)) {
-      return { success: false, error: 'Input must be a non-array object' };
-    }
-    try {
-      const result: any = {};
-      Object.keys(input).forEach(key => {
-        const val = input[key];
-        if (val == null) {
-          result[key] = null;
-        } else if (typeof val === 'number' && isNaN(val)) {
-          throw new Error('NaN value found in input');
-        } else if (Array.isArray(val)) {
-          if (val.length === 0) {
-            result[key] = [];
-          } else {
-            result[key] = val.filter((v: any) => v != null);
-          }
-        } else {
-          result[key] = val;
-        }
-      });
-      if (Object.keys(result).length === 0) {
-        return { success: false, error: 'Processed object is empty' };
+    const keys = path.split('.').filter(Boolean);
+    let current: any = obj;
+
+    for (const key of keys) {
+      if (current === null || current === undefined || typeof current !== 'object') {
+        return defaultValue;
       }
-      return { success: true, data: result };
-    } catch (e) {
-      return { success: false, error: e instanceof Error ? e.message : 'Processing error' };
+      if (!(key in current)) {
+        return defaultValue;
+      }
+      current = current[key];
     }
+
+    return (current as T) ?? defaultValue;
   }
 
-  // Safe division
-  divide(num: number, den: number): Result<number> {
-    if (typeof num !== 'number' || typeof den !== 'number' || isNaN(num) || isNaN(den)) {
-      return { success: false, error: 'Invalid numeric inputs' };
+  /**
+   * Python-style array slice with edge-case bounds checking.
+   */
+  public static safeSlice<T>(arr: T[] | null | undefined, start?: number, end?: number): T[] {
+    if (!Array.isArray(arr)) {
+      return [];
     }
-    if (den === 0) {
-      return { success: false, error: 'Cannot divide by zero' };
-    }
-    return { success: true, data: num / den };
+
+    const len = arr.length;
+    if (len === 0) return [];
+
+    let s = start ?? 0;
+    let e = end ?? len;
+
+    // Handle negative indices similar to Python
+    if (s < 0) s = Math.max(0, len + s);
+    if (e < 0) e = Math.max(0, len + e);
+
+    // Bound limits
+    s = Math.min(Math.max(0, s), len);
+    e = Math.min(Math.max(s, e), len);
+
+    return arr.slice(s, e);
   }
 
-  // Average with checks
-  average(values: number[]): Result<number> {
-    if (!values || values.length === 0) {
-      return { success: false, error: 'Empty or invalid array' };
+  /**
+   * Safely parses JSON strings with default fallback for malformed input.
+   */
+  public static safeJsonParse<T>(jsonString: string | null | undefined, fallback: T): T {
+    if (typeof jsonString !== 'string' || !jsonString.trim()) {
+      return fallback;
     }
+
     try {
-      const valid = values.filter(v => typeof v === 'number' && !isNaN(v));
-      if (valid.length === 0) {
-        throw new Error('No valid numbers');
-      }
-      const sum = valid.reduce((a, b) => a + b, 0);
-      return { success: true, data: sum / valid.length };
-    } catch (e) {
-      return { success: false, error: e instanceof Error ? e.message : 'Average error' };
+      const parsed = JSON.parse(jsonString);
+      return parsed ?? fallback;
+    } catch {
+      return fallback;
     }
   }
 }
