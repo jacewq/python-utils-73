@@ -1,61 +1,29 @@
-import * as fs from 'fs';
-import * as path from 'path';
-
-export interface LoggerOptions {
-  logDir: string;
-  maxSizeBytes?: number;
-  maxFiles?: number;
-  prefix?: string;
+export interface RetryOptions {
+  maxRetries?: number;
+  delayMs?: number;
 }
 
-export class RotatingLogger {
-  private logDir: string;
-  private maxSizeBytes: number;
-  private maxFiles: number;
-  private prefix: string;
-  private currentFilePath: string;
+/**
+ * Executes a function with exponential backoff retry logic
+ */
+export async function withRetry<T>(
+  operation: () => Promise<T>,
+  options: RetryOptions = {}
+): Promise<T> {
+  const { maxRetries = 3, delayMs = 1000 } = options;
+  let lastError: unknown;
 
-  constructor(options: LoggerOptions) {
-    this.logDir = options.logDir;
-    this.maxSizeBytes = options.maxSizeBytes ?? 1024 * 1024;
-    this.maxFiles = options.maxFiles ?? 5;
-    this.prefix = options.prefix ?? 'app';
-    this.currentFilePath = path.join(this.logDir, `${this.prefix}.log`);
-    this.ensureDirectoryExists();
-  }
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await operation();
+    } catch (err) {
+      lastError = err;
+      if (attempt === maxRetries) break;
 
-  private ensureDirectoryExists(): void {
-    if (!fs.existsSync(this.logDir)) {
-      fs.mkdirSync(this.logDir, { recursive: true });
+      const backoff = delayMs * Math.pow(2, attempt);
+      await new Promise((resolve) => setTimeout(resolve, backoff));
     }
   }
 
-  private rotateLogsIfNeeded(): void {
-    if (!fs.existsSync(this.currentFilePath)) return;
-
-    const stats = fs.statSync(this.currentFilePath);
-    if (stats.size < this.maxSizeBytes) return;
-
-    const oldestFile = path.join(this.logDir, `${this.prefix}.${this.maxFiles}.log`);
-    if (fs.existsSync(oldestFile)) {
-      fs.unlinkSync(oldestFile);
-    }
-
-    for (let i = this.maxFiles - 1; i >= 1; i--) {
-      const src = path.join(this.logDir, `${this.prefix}.${i}.log`);
-      const dest = path.join(this.logDir, `${this.prefix}.${i + 1}.log`);
-      if (fs.existsSync(src)) {
-        fs.renameSync(src, dest);
-      }
-    }
-
-    fs.renameSync(this.currentFilePath, path.join(this.logDir, `${this.prefix}.1.log`));
-  }
-
-  public log(message: string, level: 'INFO' | 'WARN' | 'ERROR' = 'INFO'): void {
-    this.rotateLogsIfNeeded();
-    const timestamp = new Date().toISOString();
-    const formattedMessage = `[${timestamp}] [${level}] ${message}\n`;
-    fs.appendFileSync(this.currentFilePath, formattedMessage, 'utf-8');
-  }
+  throw lastError;
 }
