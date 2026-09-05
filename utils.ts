@@ -1,28 +1,49 @@
-export interface RetryOptions {
-  maxAttempts: number;
-  backoffMs: number;
-}
+/**
+ * Optimized utility functions for data processing
+ */
+
+export type ProcessableData = Record<string, unknown>;
 
 /**
- * Executes a function with a simple exponential backoff retry mechanism.
+ * Memoized transformation for repetitive operations
  */
-export async function withRetry<T>(
-  operation: () => Promise<T>,
-  options: RetryOptions = { maxAttempts: 3, backoffMs: 1000 }
-): Promise<T> {
-  let lastError: unknown;
+const memoize = <T, R>(fn: (arg: T) => R) => {
+  const cache = new Map<T, R>();
+  return (arg: T): R => {
+    if (cache.has(arg)) return cache.get(arg)!;
+    const result = fn(arg);
+    cache.set(arg, result);
+    return result;
+  };
+};
 
-  for (let attempt = 1; attempt <= options.maxAttempts; attempt++) {
-    try {
-      return await operation();
-    } catch (err) {
-      lastError = err;
-      if (attempt === options.maxAttempts) break;
-
-      const delay = options.backoffMs * Math.pow(2, attempt - 1);
-      await new Promise((resolve) => setTimeout(resolve, delay));
+/**
+ * High-performance object key flattening with cache
+ */
+export const flattenObject = memoize((obj: ProcessableData): Record<string, any> => {
+  const result: Record<string, any> = {};
+  
+  const recurse = (current: any, prefix = '') => {
+    for (const key in current) {
+      const newKey = prefix ? `${prefix}.${key}` : key;
+      if (typeof current[key] === 'object' && current[key] !== null) {
+        recurse(current[key], newKey);
+      } else {
+        result[newKey] = current[key];
+      }
     }
-  }
+  };
 
-  throw lastError;
+  recurse(obj);
+  return result;
+});
+
+/**
+ * Batch processor for large arrays to avoid stack overflow
+ */
+export function batchProcess<T>(items: T[], callback: (item: T) => void, batchSize = 100): void {
+  for (let i = 0; i < items.length; i += batchSize) {
+    const batch = items.slice(i, i + batchSize);
+    batch.forEach(callback);
+  }
 }
