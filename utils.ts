@@ -1,49 +1,84 @@
 /**
- * Optimized utility functions for data processing
+ * Utility functions inspired by Python standard library behaviors
+ * with comprehensive edge-case handling.
  */
 
-export type ProcessableData = Record<string, unknown>;
-
-/**
- * Memoized transformation for repetitive operations
- */
-const memoize = <T, R>(fn: (arg: T) => R) => {
-  const cache = new Map<T, R>();
-  return (arg: T): R => {
-    if (cache.has(arg)) return cache.get(arg)!;
-    const result = fn(arg);
-    cache.set(arg, result);
-    return result;
-  };
-};
-
-/**
- * High-performance object key flattening with cache
- */
-export const flattenObject = memoize((obj: ProcessableData): Record<string, any> => {
-  const result: Record<string, any> = {};
-  
-  const recurse = (current: any, prefix = '') => {
-    for (const key in current) {
-      const newKey = prefix ? `${prefix}.${key}` : key;
-      if (typeof current[key] === 'object' && current[key] !== null) {
-        recurse(current[key], newKey);
-      } else {
-        result[newKey] = current[key];
-      }
-    }
-  };
-
-  recurse(obj);
-  return result;
-});
-
-/**
- * Batch processor for large arrays to avoid stack overflow
- */
-export function batchProcess<T>(items: T[], callback: (item: T) => void, batchSize = 100): void {
-  for (let i = 0; i < items.length; i += batchSize) {
-    const batch = items.slice(i, i + batchSize);
-    batch.forEach(callback);
+export class UtilityError extends Error {
+  constructor(message: string, public readonly code: string) {
+    super(message);
+    this.name = 'UtilityError';
   }
+}
+
+/**
+ * Safely parses a JSON string with fallback value and error context.
+ */
+export function safeJsonParse<T>(jsonString: string | null | undefined, fallback: T): T {
+  if (!jsonString || typeof jsonString !== 'string') {
+    return fallback;
+  }
+  try {
+    return JSON.parse(jsonString) as T;
+  } catch {
+    return fallback;
+  }
+}
+
+/**
+ * Accesses nested properties safely, returning fallback if any key fails or is null.
+ */
+export function safeGet<T, R>(obj: T, path: string, fallback: R): R {
+  if (obj === null || obj === undefined || typeof path !== 'string' || !path.trim()) {
+    return fallback;
+  }
+
+  const keys = path.split('.').filter(Boolean);
+  let current: any = obj;
+
+  for (const key of keys) {
+    if (current === null || current === undefined || typeof current !== 'object') {
+      return fallback;
+    }
+    current = current[key];
+  }
+
+  return (current !== undefined ? current : fallback) as R;
+}
+
+/**
+ * Generates an array of numbers like Python's range(), handling negative steps and zero steps safely.
+ */
+export function safeRange(start: number, stop?: number, step: number = 1): number[] {
+  if (typeof start !== 'number' || Number.isNaN(start)) {
+    throw new UtilityError('Start value must be a valid number', 'INVALID_START');
+  }
+
+  let actualStart = start;
+  let actualStop = stop;
+
+  if (actualStop === undefined) {
+    actualStop = actualStart;
+    actualStart = 0;
+  }
+
+  if (step === 0) {
+    throw new UtilityError('Step size cannot be zero', 'ZERO_STEP');
+  }
+
+  if (!Number.isFinite(actualStart) || !Number.isFinite(actualStop) || !Number.isFinite(step)) {
+    throw new UtilityError('Range arguments must be finite numbers', 'NON_FINITE_ARGS');
+  }
+
+  const result: number[] = [];
+  if (step > 0) {
+    for (let i = actualStart; i < actualStop; i += step) {
+      result.push(i);
+    }
+  } else {
+    for (let i = actualStart; i > actualStop; i += step) {
+      result.push(i);
+    }
+  }
+
+  return result;
 }
