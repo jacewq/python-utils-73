@@ -1,27 +1,53 @@
-export interface RetryOptions {
-  maxAttempts: number;
-  delayMs: number;
-}
-
 /**
- * Retries an asynchronous function with a fixed delay
+ * Generates an array of numbers representing a sequence.
+ * Mimics Python's built-in range function.
+ *
+ * @param start - The starting value (inclusive), or the stop value if end is omitted.
+ * @param stop - The end value (exclusive).
+ * @param step - The increment between each number in the sequence. Defaults to 1.
+ * @returns An array of numbers.
  */
-export async function retry<T>(
-  operation: () => Promise<T>,
-  options: RetryOptions = { maxAttempts: 3, delayMs: 1000 }
-): Promise<T> {
-  let lastError: unknown;
+export function range(start: number, stop?: number, step: number = 1): number[] {
+  const result: number[] = [];
+  const actualStart = stop === undefined ? 0 : start;
+  const actualStop = stop === undefined ? start : stop;
 
-  for (let attempt = 1; attempt <= options.maxAttempts; attempt++) {
-    try {
-      return await operation();
-    } catch (err) {
-      lastError = err;
-      if (attempt < options.maxAttempts) {
-        await new Promise((resolve) => setTimeout(resolve, options.delayMs));
-      }
+  if (step === 0) {
+    throw new Error("step argument must not be zero");
+  }
+
+  if (step > 0) {
+    for (let i = actualStart; i < actualStop; i += step) {
+      result.push(i);
+    }
+  } else {
+    for (let i = actualStart; i > actualStop; i += step) {
+      result.push(i);
     }
   }
 
-  throw lastError;
+  return result;
+}
+
+/**
+ * Pairs up elements from multiple arrays, stopping at the shortest array.
+ * Mimics Python's built-in zip function.
+ *
+ * @param arrays - An array of arrays to zip together.
+ * @returns An array of tuples containing corresponding elements.
+ */
+export function zip<T extends any[]>(...arrays: { [K in keyof T]: T[K][] }): T[] {
+  if (arrays.length === 0) {
+    return [];
+  }
+
+  const minLength = Math.min(...arrays.map(arr => arr.length));
+  const result: T[] = [];
+
+  for (let i = 0; i < minLength; i++) {
+    const tuple = arrays.map(arr => arr[i]) as unknown as T;
+    result.push(tuple);
+  }
+
+  return result;
 }
