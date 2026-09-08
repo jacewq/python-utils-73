@@ -1,39 +1,32 @@
-/**
- * Configuration interface for python-utils-73 environment.
- */
 export interface AppConfig {
-  readonly environment: 'development' | 'production' | 'testing';
-  readonly retryAttempts: number;
-  readonly timeoutMs: number;
+  port: number;
+  host: string;
+  debug: boolean;
 }
 
-/**
- * Default settings for the utility service.
- */
-export const defaultConfig: AppConfig = {
-  environment: 'development',
-  retryAttempts: 3,
-  timeoutMs: 5000
+const DEFAULT_CONFIG: AppConfig = {
+  port: 3000,
+  host: 'localhost',
+  debug: false,
 };
 
 /**
- * Validates the provided configuration object.
- * @param config - The application configuration to validate
- * @returns boolean indicating if the configuration is valid
+ * Merges partial user config with application defaults
  */
-export function validateConfig(config: AppConfig): boolean {
-  if (config.retryAttempts < 0) return false;
-  if (config.timeoutMs < 0) return false;
-  return true;
+export function loadConfig(userConfig: Partial<AppConfig> = {}): AppConfig {
+  return {
+    ...DEFAULT_CONFIG,
+    ...userConfig,
+  };
 }
 
 /**
- * Factory to create a customized environment configuration.
- * @param overrides - Partial config overrides
+ * Environment-aware configuration factory
  */
-export function createConfig(overrides: Partial<AppConfig>): AppConfig {
-  return {
-    ...defaultConfig,
-    ...overrides
-  };
+export function getConfigFromEnv(): AppConfig {
+  return loadConfig({
+    port: process.env.PORT ? parseInt(process.env.PORT, 10) : undefined,
+    host: process.env.HOST,
+    debug: process.env.NODE_ENV !== 'production',
+  });
 }
