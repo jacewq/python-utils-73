@@ -1,38 +1,39 @@
-export class PythonServiceError extends Error {
-  constructor(public message: string, public code: string) {
-    super(message);
-    this.name = 'PythonServiceError';
-  }
+interface RetryOptions {
+  maxAttempts: number;
+  delayMs: number;
 }
 
-export const executePythonProcess = async (command: string, args: string[]): Promise<string> => {
-  if (!command || command.trim() === '') {
-    throw new PythonServiceError('Empty command provided', 'ERR_EMPTY_CMD');
-  }
+/**
+ * Executes a network operation with exponential backoff retry logic.
+ */
+export async function withRetry<T>(
+  operation: () => Promise<T>,
+  options: RetryOptions = { maxAttempts: 3, delayMs: 1000 }
+): Promise<T> {
+  let lastError: unknown;
 
-  try {
-    // Simulated execution logic for python script orchestration
-    const process = await runShell(command, args);
-    
-    if (process.exitCode !== 0) {
-      throw new PythonServiceError(
-        `Process failed with code ${process.exitCode}: ${process.stderr}`,
-        'ERR_PROCESS_FAILED'
-      );
+  for (let attempt = 1; attempt <= options.maxAttempts; attempt++) {
+    try {
+      return await operation();
+    } catch (error) {
+      lastError = error;
+
+      if (attempt < options.maxAttempts) {
+        const backoff = options.delayMs * Math.pow(2, attempt - 1);
+        await new Promise((resolve) => setTimeout(resolve, backoff));
+      }
     }
-
-    return process.stdout;
-  } catch (error: any) {
-    if (error instanceof PythonServiceError) throw error;
-    
-    throw new PythonServiceError(
-      `Unexpected system failure: ${error.message}`,
-      'ERR_INTERNAL_SYSTEM'
-    );
   }
-};
 
-async function runShell(cmd: string, args: string[]): Promise<{ stdout: string; stderr: string; exitCode: number }> {
-  // Implementation wrapper for child_process or exec
-  return { stdout: '', stderr: '', exitCode: 0 };
+  throw lastError instanceof Error ? lastError : new Error(String(lastError));
 }
+
+export const fetchWithRetry = async (url: string, init?: RequestInit) => {
+  return withRetry(async () => {
+    const response = await fetch(url, init);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    return response;
+  });
+};
