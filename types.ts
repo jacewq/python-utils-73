@@ -1,38 +1,48 @@
-export interface PythonConfig {
-  interpreterPath: string;
-  version: string;
-  isVirtualEnv: boolean;
+/**
+ * Represents a standard python-utils-73 execution result
+ */
+export interface ExecutionResult<T> {
+  readonly success: boolean;
+  readonly data?: T;
+  readonly error?: string;
+  readonly timestamp: number;
 }
 
-export interface ExecutionResult {
-  stdout: string;
-  stderr: string;
-  exitCode: number;
-  durationMs: number;
+/**
+ * Configuration options for internal script processing
+ */
+export interface ScriptOptions {
+  readonly verbose: boolean;
+  readonly timeoutMs: number;
+  readonly env: Record<string, string>;
 }
 
-export interface PackageMetadata {
-  name: string;
-  version: string;
-  dependencies: string[];
+/**
+ * Mapping of python dependency versions
+ */
+export type DependencyMap = Map<string, string>;
+
+/**
+ * Standardized error structure for Python utility processes
+ */
+export interface ProcessError extends Error {
+  readonly code: number;
+  readonly stderr: string;
 }
 
-export type Logger = (message: string, level?: 'info' | 'error') => void;
+/**
+ * Helper type for validated utility inputs
+ */
+export type UtilityInput = string | number | string[];
 
-export interface CommandOptions {
-  timeout?: number;
-  cwd?: string;
-  env?: Record<string, string>;
-  captureOutput?: boolean;
-}
+export const createResult = <T>(data: T): ExecutionResult<T> => ({
+  success: true,
+  data,
+  timestamp: Date.now(),
+});
 
-export class PythonRuntimeError extends Error {
-  constructor(
-    public message: string,
-    public exitCode: number,
-    public stderr: string
-  ) {
-    super(message);
-    this.name = 'PythonRuntimeError';
-  }
-}
+export const createError = (error: string): ExecutionResult<never> => ({
+  success: false,
+  error,
+  timestamp: Date.now(),
+});
