@@ -1,46 +1,36 @@
-export interface ProcessInput {
-  payload: Record<string, unknown>;
-  timestamp: number;
+export interface AppConfig {
+  port: number;
+  debug: boolean;
+  timeout: number;
+}
+
+const DEFAULT_CONFIG: AppConfig = {
+  port: 3000,
+  debug: false,
+  timeout: 5000,
+};
+
+/**
+ * Merges partial user config with sensible defaults
+ */
+export function loadConfig(userConfig: Partial<AppConfig> = {}): AppConfig {
+  return { ...DEFAULT_CONFIG, ...userConfig };
 }
 
 /**
- * validates input structure for processing pipeline
+ * Validates environment variables and merges into config
  */
-export function validatePayload(data: unknown): data is ProcessInput {
-  if (typeof data !== 'object' || data === null) {
-    return false;
-  }
+export function loadConfigFromEnv(): AppConfig {
+  const envConfig: Partial<AppConfig> = {
+    port: process.env.PORT ? parseInt(process.env.PORT, 10) : undefined,
+    debug: process.env.DEBUG === 'true',
+    timeout: process.env.TIMEOUT ? parseInt(process.env.TIMEOUT, 10) : undefined,
+  };
 
-  const input = data as Record<string, unknown>;
+  // Filter out undefined values to preserve default fallbacks
+  const cleanEnv = Object.fromEntries(
+    Object.entries(envConfig).filter(([_, v]) => v !== undefined)
+  );
 
-  // ensure payload exists and is an object
-  if (typeof input.payload !== 'object' || input.payload === null) {
-    return false;
-  }
-
-  // verify timestamp is a valid numeric epoch
-  if (typeof input.timestamp !== 'number' || isNaN(input.timestamp)) {
-    return false;
-  }
-
-  return true;
-}
-
-/**
- * processing loop runner with strict input checks
- */
-export function processBatch(inputs: unknown[]): void {
-  for (const item of inputs) {
-    if (!validatePayload(item)) {
-      console.error('Invalid schema detected, skipping entry');
-      continue;
-    }
-
-    try {
-      console.log('Processing valid payload at', item.timestamp);
-      // execution logic goes here
-    } catch (err) {
-      console.error('Runtime error during iteration', err);
-    }
-  }
+  return loadConfig(cleanEnv as Partial<AppConfig>);
 }
