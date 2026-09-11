@@ -1,39 +1,47 @@
-interface RetryOptions {
-  maxAttempts: number;
-  delayMs: number;
+export interface PythonProcessConfig {
+  executable: string;
+  args: string[];
+  env?: Record<string, string>;
+}
+
+export interface ExecutionResult {
+  stdout: string;
+  stderr: string;
+  exitCode: number | null;
 }
 
 /**
- * Executes a network operation with exponential backoff retry logic.
+ * Executes a python script using the configured runtime environment.
  */
-export async function withRetry<T>(
-  operation: () => Promise<T>,
-  options: RetryOptions = { maxAttempts: 3, delayMs: 1000 }
-): Promise<T> {
-  let lastError: unknown;
+export async function runPythonScript(path: string, config: PythonProcessConfig): Promise<ExecutionResult> {
+  const { spawn } = await import('child_process');
+  
+  return new Promise((resolve, reject) => {
+    const child = spawn(config.executable, [path, ...config.args], { env: config.env });
+    let stdout = '';
+    let stderr = '';
 
-  for (let attempt = 1; attempt <= options.maxAttempts; attempt++) {
-    try {
-      return await operation();
-    } catch (error) {
-      lastError = error;
+    child.stdout.on('data', (data: Buffer) => {
+      stdout += data.toString();
+    });
 
-      if (attempt < options.maxAttempts) {
-        const backoff = options.delayMs * Math.pow(2, attempt - 1);
-        await new Promise((resolve) => setTimeout(resolve, backoff));
-      }
-    }
-  }
+    child.stderr.on('data', (data: Buffer) => {
+      stderr += data.toString();
+    });
 
-  throw lastError instanceof Error ? lastError : new Error(String(lastError));
+    child.on('close', (code: number | null) => {
+      resolve({ stdout, stderr, exitCode: code });
+    });
+
+    child.on('error', (err: Error) => {
+      reject(err);
+    });
+  });
 }
 
-export const fetchWithRetry = async (url: string, init?: RequestInit) => {
-  return withRetry(async () => {
-    const response = await fetch(url, init);
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    return response;
-  });
-};
+/**
+ * Validates python script path presence and environment configuration.
+ */
+export function validateServiceConfig(config: PythonProcessConfig): boolean {
+  return !!config.executable && Array.isArray(config.args);
+}
