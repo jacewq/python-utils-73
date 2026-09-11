@@ -1,46 +1,44 @@
-export interface RetryOptions {
-  maxAttempts?: number;
-  delayMs?: number;
-  backoffFactor?: number;
-  onRetry?: (error: Error, attempt: number) => void;
+/**
+ * Python-utils-73 general utility functions
+ */
+
+export type JsonValue = string | number | boolean | null | { [key: string]: JsonValue } | JsonValue[];
+
+/**
+ * Safely deep clones a simple JSON object
+ */
+export function cloneObject<T extends JsonValue>(source: T): T {
+  return JSON.parse(JSON.stringify(source)) as T;
 }
 
 /**
- * Executes an asynchronous operation with exponential backoff retry logic.
- * Suitable for handling transient network failures.
+ * Generates a standard delay for async operations
  */
-export async function retryOperation<T>(
-  fn: () => Promise<T>,
-  options: RetryOptions = {}
-): Promise<T> {
-  const {
-    maxAttempts = 3,
-    delayMs = 1000,
-    backoffFactor = 2,
-    onRetry,
-  } = options;
+export function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
-  let lastError: Error = new Error('Operation failed.');
-  let currentDelay = delayMs;
-
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    try {
-      return await fn();
-    } catch (error) {
-      lastError = error instanceof Error ? error : new Error(String(error));
-
-      if (attempt === maxAttempts) {
-        break;
-      }
-
-      if (onRetry) {
-        onRetry(lastError, attempt);
-      }
-
-      await new Promise((resolve) => setTimeout(resolve, currentDelay));
-      currentDelay *= backoffFactor;
+/**
+ * Groups an array of objects by a specific key
+ */
+export function groupBy<T extends Record<string, any>>(items: T[], key: keyof T): Record<string, T[]> {
+  return items.reduce((accumulator, item) => {
+    const groupKey = String(item[key]);
+    if (!accumulator[groupKey]) {
+      accumulator[groupKey] = [];
     }
-  }
+    accumulator[groupKey].push(item);
+    return accumulator;
+  }, {} as Record<string, T[]>);
+}
 
-  throw lastError;
+/**
+ * Formats a string to title case for UI display
+ */
+export function toTitleCase(input: string): string {
+  return input
+    .toLowerCase()
+    .split(' ')
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
 }
