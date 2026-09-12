@@ -1,48 +1,41 @@
 /**
- * Represents a standard python-utils-73 execution result
+ * Represents a Python execution result wrapper
  */
-export interface ExecutionResult<T> {
-  readonly success: boolean;
-  readonly data?: T;
+export interface PythonResult<T = any> {
+  readonly output: T;
+  readonly exitCode: number;
   readonly error?: string;
-  readonly timestamp: number;
 }
 
 /**
- * Configuration options for internal script processing
+ * Configuration options for execution tasks
  */
-export interface ScriptOptions {
-  readonly verbose: boolean;
+export interface ExecutionOptions {
   readonly timeoutMs: number;
-  readonly env: Record<string, string>;
+  readonly env?: Record<string, string>;
+  readonly cwd?: string;
 }
 
 /**
- * Mapping of python dependency versions
+ * Mapping of Python version identifiers to system paths
  */
-export type DependencyMap = Map<string, string>;
+export type PythonPathMap = Record<string, string>;
 
 /**
- * Standardized error structure for Python utility processes
+ * Standard return structure for utility status checks
  */
-export interface ProcessError extends Error {
-  readonly code: number;
-  readonly stderr: string;
+export interface StatusResponse {
+  readonly isAvailable: boolean;
+  readonly version: string | null;
+  readonly lastChecked: Date;
 }
 
 /**
- * Helper type for validated utility inputs
+ * Callback signature for async stream processing
  */
-export type UtilityInput = string | number | string[];
+export type StreamHandler = (chunk: string) => void;
 
-export const createResult = <T>(data: T): ExecutionResult<T> => ({
-  success: true,
-  data,
-  timestamp: Date.now(),
-});
-
-export const createError = (error: string): ExecutionResult<never> => ({
-  success: false,
-  error,
-  timestamp: Date.now(),
-});
+/**
+ * Union type for supported serialization formats
+ */
+export type ExportFormat = 'json' | 'yaml' | 'csv';
