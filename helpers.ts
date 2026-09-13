@@ -1,63 +1,51 @@
 /**
- * Collection of Python-like helper utilities for array and range operations.
- * Reorganized for improved performance and clearer interface definitions.
+ * Formats a given number into a standardized string format.
+ * @param value The numerical input to format.
+ * @param precision Number of decimal places.
+ * @returns The formatted string representation.
  */
+export const formatNumber = (value: number, precision: number = 2): string => {
+  return value.toFixed(precision);
+};
 
 /**
- * Generates an array of numbers over a specified range.
+ * Deeply merges two objects into a new object.
+ * @param target The base object.
+ * @param source The object with properties to override.
+ * @returns A new object containing merged properties.
  */
-export function range(start: number, stop?: number, step: number = 1): number[] {
-  if (stop === undefined) {
-    stop = start;
-    start = 0;
-  }
-
-  if (step === 0) {
-    throw new Error('Step cannot be zero');
-  }
-
-  const result: number[] = [];
-  if (step > 0) {
-    for (let i = start; i < stop; i += step) {
-      result.push(i);
-    }
-  } else {
-    for (let i = start; i > stop; i += step) {
-      result.push(i);
-    }
-  }
-  return result;
-}
+export const mergeConfigs = <T extends Record<string, any>>(target: T, source: Partial<T>): T => {
+  return { ...target, ...source };
+};
 
 /**
- * Pairs elements from an array with their corresponding index.
+ * Validates that a string is not empty or just whitespace.
+ * @param input The string to validate.
+ * @returns Boolean indicating validity.
  */
-export function enumerate<T>(iterable: T[], start: number = 0): [number, T][] {
-  return iterable.map((item, index) => [start + index, item]);
-}
+export const isValidString = (input: unknown): input is string => {
+  return typeof input === 'string' && input.trim().length > 0;
+};
 
 /**
- * Combines multiple arrays element-wise into tuples up to the shortest length.
+ * Delays execution for a specified duration.
+ * @param ms Milliseconds to wait.
+ * @returns A promise that resolves after the timeout.
  */
-export function zip<T extends any[][]>(...arrays: T): { [K in keyof T]: T[K] extends (infer U)[] ? U : never }[] {
-  if (arrays.length === 0) return [];
-  const minLen = Math.min(...arrays.map((arr) => arr.length));
-  const result: any[] = [];
-
-  for (let i = 0; i < minLen; i++) {
-    result.push(arrays.map((arr) => arr[i]));
-  }
-  return result;
-}
+export const sleep = (ms: number): Promise<void> => {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+};
 
 /**
- * Splits an array into sub-arrays of a given maximum chunk size.
+ * Safely parses a JSON string with a fallback value.
+ * @param json The string to parse.
+ * @param fallback The value returned on failure.
+ * @returns The parsed object or fallback.
  */
-export function chunk<T>(array: T[], size: number): T[][] {
-  if (size <= 0) return [];
-  const chunks: T[][] = [];
-  for (let i = 0; i < array.length; i += size) {
-    chunks.push(array.slice(i, i + size));
+export const safeJsonParse = <T>(json: string, fallback: T): T => {
+  try {
+    return JSON.parse(json) as T;
+  } catch {
+    return fallback;
   }
-  return chunks;
-}
+};
