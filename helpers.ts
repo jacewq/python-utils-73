@@ -1,51 +1,33 @@
-/**
- * Formats a given number into a standardized string format.
- * @param value The numerical input to format.
- * @param precision Number of decimal places.
- * @returns The formatted string representation.
- */
-export const formatNumber = (value: number, precision: number = 2): string => {
-  return value.toFixed(precision);
-};
+import * as winston from 'winston';
+import 'winston-daily-rotate-file';
+import * as path from 'path';
 
 /**
- * Deeply merges two objects into a new object.
- * @param target The base object.
- * @param source The object with properties to override.
- * @returns A new object containing merged properties.
+ * Configures a rotating file logger for Python-utils-73
+ * Logs are kept for 14 days and rotated daily.
  */
-export const mergeConfigs = <T extends Record<string, any>>(target: T, source: Partial<T>): T => {
-  return { ...target, ...source };
+export const createLogger = (serviceName: string) => {
+  const transport = new winston.transports.DailyRotateFile({
+    filename: path.join('logs', `${serviceName}-%DATE%.log`),
+    datePattern: 'YYYY-MM-DD',
+    zippedArchive: true,
+    maxSize: '20m',
+    maxFiles: '14d'
+  });
+
+  return winston.createLogger({
+    level: 'info',
+    format: winston.format.combine(
+      winston.format.timestamp(),
+      winston.format.json()
+    ),
+    transports: [
+      transport,
+      new winston.transports.Console({
+        format: winston.format.simple()
+      })
+    ]
+  });
 };
 
-/**
- * Validates that a string is not empty or just whitespace.
- * @param input The string to validate.
- * @returns Boolean indicating validity.
- */
-export const isValidString = (input: unknown): input is string => {
-  return typeof input === 'string' && input.trim().length > 0;
-};
-
-/**
- * Delays execution for a specified duration.
- * @param ms Milliseconds to wait.
- * @returns A promise that resolves after the timeout.
- */
-export const sleep = (ms: number): Promise<void> => {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-};
-
-/**
- * Safely parses a JSON string with a fallback value.
- * @param json The string to parse.
- * @param fallback The value returned on failure.
- * @returns The parsed object or fallback.
- */
-export const safeJsonParse = <T>(json: string, fallback: T): T => {
-  try {
-    return JSON.parse(json) as T;
-  } catch {
-    return fallback;
-  }
-};
+export const logger = createLogger('python-utils-73');
