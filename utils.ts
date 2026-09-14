@@ -1,58 +1,71 @@
-/**
- * Python-like iteration and sequence utilities for data handling.
- */
-
-/**
- * Combines multiple arrays into an array of tuples, mimicking Python's zip.
- * Stops at the length of the shortest input array.
- */
-export function zip<T extends unknown[][]>(
-  ...arrays: T
-): Array<{ [K in keyof T]: T[K] extends Array<infer U> ? U : never }> {
-  if (arrays.length === 0) return [];
-  const minLength = Math.min(...arrays.map((arr) => arr.length));
-  const result: any[] = [];
-
-  for (let i = 0; i < minLength; i++) {
-    result.push(arrays.map((arr) => arr[i]));
-  }
-
-  return result as any;
+export interface ProcessingItem {
+  id: string;
+  command: string;
+  args?: Record<string, unknown>;
+  timeoutMs?: number;
 }
 
-/**
- * Returns an array of [index, element] pairs from an iterable, mimicking Python's enumerate.
- */
-export function enumerate<T>(iterable: Iterable<T> | T[], start = 0): Array<[number, T]> {
-  const result: Array<[number, T]> = [];
-  let index = start;
-  for (const item of iterable) {
-    result.push([index++, item]);
-  }
-  return result;
+export interface ProcessingResult {
+  id: string;
+  success: boolean;
+  error?: string;
+  data?: string;
 }
 
-/**
- * Generates a sequence of numbers, mimicking Python's range.
- */
-export function range(start: number, stop?: number, step = 1): number[] {
-  if (step === 0) {
-    throw new Error("range() step argument must not be zero");
+export class BatchProcessor {
+  private validateItem(item: unknown): item is ProcessingItem {
+    if (!item || typeof item !== 'object') {
+      return false;
+    }
+    const record = item as Record<string, unknown>;
+    if (typeof record.id !== 'string' || record.id.trim() === '') {
+      return false;
+    }
+    if (typeof record.command !== 'string' || record.command.trim() === '') {
+      return false;
+    }
+    if (record.timeoutMs !== undefined && (typeof record.timeoutMs !== 'number' || record.timeoutMs <= 0)) {
+      return false;
+    }
+    return true;
   }
 
-  const actualStart = stop === undefined ? 0 : start;
-  const actualStop = stop === undefined ? start : stop;
-  const result: number[] = [];
+  public processBatch(rawItems: unknown[]): ProcessingResult[] {
+    const results: ProcessingResult[] = [];
 
-  if (step > 0) {
-    for (let i = actualStart; i < actualStop; i += step) {
-      result.push(i);
+    for (let i = 0; i < rawItems.length; i++) {
+      const rawItem = rawItems[i];
+
+      // Validate input payload before processing
+      if (!this.validateItem(rawItem)) {
+        const fallbackId = (rawItem && typeof rawItem === 'object' && 'id' in rawItem && typeof rawItem.id === 'string')
+          ? rawItem.id
+          : `invalid-${i}`;
+
+        results.push({
+          id: fallbackId,
+          success: false,
+          error: 'Invalid input payload structure or missing required fields',
+        });
+        continue;
+      }
+
+      try {
+        const formattedCmd = `${rawItem.command.toLowerCase().trim()}:${JSON.stringify(rawItem.args || {})}`;
+        results.push({
+          id: rawItem.id,
+          success: true,
+          data: formattedCmd,
+        });
+      } catch (err) {
+        results.push({
+          id: rawItem.id,
+          success: false,
+          error: err instanceof Error ? err.message : 'Processing error',
+        });
+      }
     }
-  } else {
-    for (let i = actualStart; i > actualStop; i += step) {
-      result.push(i);
-    }
+
+    return results;
   }
-
-  return result;
 }
