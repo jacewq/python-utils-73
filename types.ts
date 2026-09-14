@@ -1,41 +1,40 @@
 /**
- * Represents a Python execution result wrapper
+ * generic utility types for data handling
  */
-export interface PythonResult<T = any> {
-  readonly output: T;
-  readonly exitCode: number;
-  readonly error?: string;
+
+export type DeepPartial<T> = {
+  [P in keyof T]?: T[P] extends (infer U)[]
+    ? DeepPartial<U>[]
+    : T[P] extends object
+    ? DeepPartial<T[P]>
+    : T[P];
+};
+
+export type Nullable<T> = T | null | undefined;
+
+export interface DataResponse<T> {
+  data: T;
+  timestamp: number;
+  metadata?: Record<string, unknown>;
 }
 
 /**
- * Configuration options for execution tasks
+ * type guard for null check
  */
-export interface ExecutionOptions {
-  readonly timeoutMs: number;
-  readonly env?: Record<string, string>;
-  readonly cwd?: string;
+export function isPresent<T>(value: Nullable<T>): value is T {
+  return value !== null && value !== undefined;
 }
 
 /**
- * Mapping of Python version identifiers to system paths
+ * utility to normalize input data structures
  */
-export type PythonPathMap = Record<string, string>;
-
-/**
- * Standard return structure for utility status checks
- */
-export interface StatusResponse {
-  readonly isAvailable: boolean;
-  readonly version: string | null;
-  readonly lastChecked: Date;
+export function normalizeData<T extends object>(data: DeepPartial<T>): T {
+  return JSON.parse(JSON.stringify(data)) as T;
 }
 
-/**
- * Callback signature for async stream processing
- */
-export type StreamHandler = (chunk: string) => void;
-
-/**
- * Union type for supported serialization formats
- */
-export type ExportFormat = 'json' | 'yaml' | 'csv';
+export interface PaginatedResult<T> {
+  items: T[];
+  total: number;
+  page: number;
+  limit: number;
+}
