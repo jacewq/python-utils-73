@@ -1,40 +1,47 @@
 /**
- * generic utility types for data handling
+ * Core interface definitions for python-utils-73
  */
 
-export type DeepPartial<T> = {
-  [P in keyof T]?: T[P] extends (infer U)[]
-    ? DeepPartial<U>[]
-    : T[P] extends object
-    ? DeepPartial<T[P]>
-    : T[P];
-};
+export interface PythonConfig {
+  interpreterPath: string;
+  version: string;
+  virtualEnv?: string;
+}
 
-export type Nullable<T> = T | null | undefined;
+export interface ExecutionResult {
+  output: string;
+  exitCode: number;
+  error?: string;
+}
 
-export interface DataResponse<T> {
-  data: T;
+export interface TaskMetadata {
+  id: string;
   timestamp: number;
-  metadata?: Record<string, unknown>;
+  tags: string[];
 }
 
-/**
- * type guard for null check
- */
-export function isPresent<T>(value: Nullable<T>): value is T {
-  return value !== null && value !== undefined;
+export type ProcessStatus = 'pending' | 'running' | 'completed' | 'failed';
+
+export interface JobState {
+  jobId: string;
+  status: ProcessStatus;
+  lastUpdated: Date;
 }
 
-/**
- * utility to normalize input data structures
- */
-export function normalizeData<T extends object>(data: DeepPartial<T>): T {
-  return JSON.parse(JSON.stringify(data)) as T;
+export interface ValidationResult {
+  isValid: boolean;
+  message?: string;
+  details?: Record<string, unknown>;
 }
 
-export interface PaginatedResult<T> {
-  items: T[];
-  total: number;
-  page: number;
-  limit: number;
+export interface LoggerConfig {
+  level: 'debug' | 'info' | 'warn' | 'error';
+  format: 'json' | 'text';
+  outputStream: NodeJS.WritableStream;
 }
+
+export const DEFAULT_PYTHON_VERSION = '3.10.0';
+
+export const SUPPORTED_EXTENSIONS = ['.py', '.pyi', '.pyx'] as const;
+
+export type SupportedExtension = typeof SUPPORTED_EXTENSIONS[number];
