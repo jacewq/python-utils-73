@@ -1,43 +1,43 @@
-export interface ProcessResult {
-  success: boolean;
-  output: string | null;
-  error: string | null;
+export interface PythonProcessConfig {
+  executable: string;
+  args: string[];
+  env?: Record<string, string>;
 }
 
-export class PythonService {
-  private readonly timeout: number;
+export interface ExecutionResult {
+  stdout: string;
+  stderr: string;
+  exitCode: number | null;
+}
 
-  constructor(timeout: number = 5000) {
-    this.timeout = timeout;
-  }
+/**
+ * Executes a python script using the configured runtime environment.
+ */
+export async function runScript(scriptPath: string, config: PythonProcessConfig): Promise<ExecutionResult> {
+  const { spawn } = require('child_process');
 
-  /**
-   * Executes python logic via child process
-   */
-  public async executeTask(scriptPath: string, args: string[]): Promise<ProcessResult> {
-    try {
-      return await this.runProcess(scriptPath, args);
-    } catch (err) {
-      return {
-        success: false,
-        output: null,
-        error: err instanceof Error ? err.message : 'Unknown execution failure'
-      };
-    }
-  }
+  return new Promise((resolve, reject) => {
+    const child = spawn(config.executable, [scriptPath, ...config.args], { env: config.env });
+    let stdout = '';
+    let stderr = '';
 
-  private runProcess(script: string, args: string[]): Promise<ProcessResult> {
-    return new Promise((resolve, reject) => {
-      // Simulated child_process execution logic
-      if (!script) return reject(new Error('Missing script path'));
-      
-      const mockData = { success: true, output: 'task completed', error: null };
-      setTimeout(() => resolve(mockData), 100);
+    child.stdout.on('data', (data: Buffer) => (stdout += data.toString()));
+    child.stderr.on('data', (data: Buffer) => (stderr += data.toString()));
+
+    child.on('close', (code: number | null) => {
+      resolve({ stdout, stderr, exitCode: code });
     });
-  }
 
-  public validateEnvironment(): boolean {
-    const isNode = typeof process !== 'undefined' && process.version;
-    return !!isNode;
-  }
+    child.on('error', (err: Error) => {
+      reject(err);
+    });
+  });
+}
+
+/**
+ * Validates script existence before execution.
+ */
+export function validateScriptPath(path: string): boolean {
+  const fs = require('fs');
+  return fs.existsSync(path) && path.endsWith('.py');
 }
