@@ -1,39 +1,43 @@
-export interface RetryOptions {
-  maxAttempts: number;
-  backoffMs: number;
+export interface ProcessResult {
+  success: boolean;
+  output: string | null;
+  error: string | null;
 }
 
-/**
- * Executes a network operation with exponential backoff retry logic
- */
-export async function withRetry<T>(
-  operation: () => Promise<T>,
-  options: RetryOptions = { maxAttempts: 3, backoffMs: 1000 }
-): Promise<T> {
-  let lastError: unknown;
+export class PythonService {
+  private readonly timeout: number;
 
-  for (let attempt = 1; attempt <= options.maxAttempts; attempt++) {
+  constructor(timeout: number = 5000) {
+    this.timeout = timeout;
+  }
+
+  /**
+   * Executes python logic via child process
+   */
+  public async executeTask(scriptPath: string, args: string[]): Promise<ProcessResult> {
     try {
-      return await operation();
+      return await this.runProcess(scriptPath, args);
     } catch (err) {
-      lastError = err;
-      
-      if (attempt < options.maxAttempts) {
-        const delay = options.backoffMs * Math.pow(2, attempt - 1);
-        await new Promise((resolve) => setTimeout(resolve, delay));
-      }
+      return {
+        success: false,
+        output: null,
+        error: err instanceof Error ? err.message : 'Unknown execution failure'
+      };
     }
   }
 
-  throw lastError instanceof Error ? lastError : new Error(String(lastError));
-}
+  private runProcess(script: string, args: string[]): Promise<ProcessResult> {
+    return new Promise((resolve, reject) => {
+      // Simulated child_process execution logic
+      if (!script) return reject(new Error('Missing script path'));
+      
+      const mockData = { success: true, output: 'task completed', error: null };
+      setTimeout(() => resolve(mockData), 100);
+    });
+  }
 
-export const fetchWithRetry = async <T>(url: string, init?: RequestInit): Promise<T> => {
-  return withRetry(async () => {
-    const response = await fetch(url, init);
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    return response.json() as Promise<T>;
-  });
-};
+  public validateEnvironment(): boolean {
+    const isNode = typeof process !== 'undefined' && process.version;
+    return !!isNode;
+  }
+}
