@@ -1,44 +1,63 @@
-export interface Config {
-  retryLimit: number;
+export interface AppConfig {
+  host: string;
+  port: number;
+  debug: boolean;
   timeoutMs: number;
+  maxRetries: number;
+  env: 'development' | 'staging' | 'production';
 }
 
-export class ConfigError extends Error {
-  constructor(public message: string, public code: string) {
-    super(message);
-    this.name = 'ConfigError';
-  }
-}
+const DEFAULT_CONFIG: AppConfig = {
+  host: '127.0.0.1',
+  port: 8000,
+  debug: false,
+  timeoutMs: 5000,
+  maxRetries: 3,
+  env: 'development'
+};
 
-/**
- * Validates provided configuration object for edge cases
- */
-export function validateConfig(config: Partial<Config>): Config {
-  if (config.retryLimit !== undefined && (config.retryLimit < 0 || config.retryLimit > 10)) {
-    throw new ConfigError('retryLimit must be between 0 and 10', 'INVALID_RETRY');
-  }
+export class ConfigLoader {
+  private config: AppConfig;
 
-  if (config.timeoutMs !== undefined && config.timeoutMs < 100) {
-    throw new ConfigError('timeoutMs must be at least 100ms', 'INVALID_TIMEOUT');
+  constructor(initialOverrides: Partial<AppConfig> = {}) {
+    this.config = this.load(initialOverrides);
   }
 
-  return {
-    retryLimit: config.retryLimit ?? 3,
-    timeoutMs: config.timeoutMs ?? 5000
-  };
-}
+  /**
+   * Merges defaults with environment variable overrides and explicit parameters.
+   */
+  private load(overrides: Partial<AppConfig>): AppConfig {
+    const envConfig: Partial<AppConfig> = {};
 
-/**
- * Safe configuration loader with default fallback
- */
-export function loadConfig(raw: unknown): Config {
-  try {
-    if (typeof raw !== 'object' || raw === null) {
-      throw new Error('Config must be an object');
+    if (typeof process !== 'undefined' && process.env) {
+      if (process.env.APP_HOST) envConfig.host = process.env.APP_HOST;
+      if (process.env.APP_PORT) {
+        const parsed = parseInt(process.env.APP_PORT, 10);
+        if (!isNaN(parsed)) envConfig.port = parsed;
+      }
+      if (process.env.APP_DEBUG) {
+        envConfig.debug = process.env.APP_DEBUG.toLowerCase() === 'true';
+      }
+      if (process.env.APP_ENV) {
+        const envVal = process.env.APP_ENV as AppConfig['env'];
+        if (['development', 'staging', 'production'].includes(envVal)) {
+          envConfig.env = envVal;
+        }
+      }
     }
-    return validateConfig(raw as Partial<Config>);
-  } catch (err) {
-    console.error('Configuration load failed, falling back to defaults:', err);
-    return { retryLimit: 3, timeoutMs: 5000 };
+
+    return {
+      ...DEFAULT_CONFIG,
+      ...envConfig,
+      ...overrides
+    };
+  }
+
+  public get<K extends keyof AppConfig>(key: K): AppConfig[K] {
+    return this.config[key];
+  }
+
+  public getAll(): Readonly<AppConfig> {
+    return { ...this.config };
   }
 }
