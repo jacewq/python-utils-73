@@ -1,6 +1,6 @@
 export interface Config {
-  endpoint: string;
-  timeout: number;
+  retryLimit: number;
+  timeoutMs: number;
 }
 
 export class ConfigError extends Error {
@@ -10,32 +10,35 @@ export class ConfigError extends Error {
   }
 }
 
-export const validateConfig = (config: unknown): Config => {
-  if (!config || typeof config !== 'object') {
-    throw new ConfigError('Invalid configuration object', 'ERR_INVALID_TYPE');
+/**
+ * Validates provided configuration object for edge cases
+ */
+export function validateConfig(config: Partial<Config>): Config {
+  if (config.retryLimit !== undefined && (config.retryLimit < 0 || config.retryLimit > 10)) {
+    throw new ConfigError('retryLimit must be between 0 and 10', 'INVALID_RETRY');
   }
 
-  const { endpoint, timeout } = config as Partial<Config>;
-
-  if (typeof endpoint !== 'string' || endpoint.length === 0) {
-    throw new ConfigError('Missing or invalid endpoint string', 'ERR_INVALID_ENDPOINT');
+  if (config.timeoutMs !== undefined && config.timeoutMs < 100) {
+    throw new ConfigError('timeoutMs must be at least 100ms', 'INVALID_TIMEOUT');
   }
 
-  if (typeof timeout !== 'number' || timeout < 0) {
-    throw new ConfigError('Timeout must be a non-negative number', 'ERR_INVALID_TIMEOUT');
-  }
+  return {
+    retryLimit: config.retryLimit ?? 3,
+    timeoutMs: config.timeoutMs ?? 5000
+  };
+}
 
-  return { endpoint, timeout };
-};
-
-export const loadConfig = (raw: unknown): Config => {
+/**
+ * Safe configuration loader with default fallback
+ */
+export function loadConfig(raw: unknown): Config {
   try {
-    return validateConfig(raw);
-  } catch (err) {
-    if (err instanceof ConfigError) {
-      console.error(`[Config] ${err.code}: ${err.message}`);
-      throw err;
+    if (typeof raw !== 'object' || raw === null) {
+      throw new Error('Config must be an object');
     }
-    throw new ConfigError('Unknown configuration error', 'ERR_UNKNOWN');
+    return validateConfig(raw as Partial<Config>);
+  } catch (err) {
+    console.error('Configuration load failed, falling back to defaults:', err);
+    return { retryLimit: 3, timeoutMs: 5000 };
   }
-};
+}
