@@ -1,45 +1,48 @@
-import { readFileSync } from 'fs';
-
-export interface AppConfig {
-  host: string;
-  port: number;
-  debug: boolean;
+/**
+ * Configuration settings for Python-style utility functions.
+ */
+export interface PythonUtilsConfig {
+  /** Default character encoding used for text processing. */
+  encoding: string;
+  /** Maximum allowed sequence length for safety checks. */
+  maxSequenceLength: number;
+  /** Enable strict type coercion matching Python semantics. */
+  strictCoercion: boolean;
+  /** Custom logger function for internal utility warnings. */
+  logger?: (message: string) => void;
 }
 
-const DEFAULT_CONFIG: AppConfig = {
-  host: '127.0.0.1',
-  port: 8080,
-  debug: false,
+/** Default configuration instance. */
+const defaultConfig: Readonly<PythonUtilsConfig> = {
+  encoding: 'utf-8',
+  maxSequenceLength: 10000,
+  strictCoercion: false,
 };
 
+let activeConfig: PythonUtilsConfig = { ...defaultConfig };
+
 /**
- * Merges file-based config with system defaults
+ * Retrieves the current global configuration object.
+ * @returns The active PythonUtilsConfig options.
  */
-export function loadConfig(path?: string): AppConfig {
-  let fileConfig: Partial<AppConfig> = {};
+export function getConfig(): Readonly<PythonUtilsConfig> {
+  return { ...activeConfig };
+}
 
-  if (path) {
-    try {
-      const raw = readFileSync(path, 'utf-8');
-      fileConfig = JSON.parse(raw) as Partial<AppConfig>;
-    } catch (err) {
-      console.error(`Failed to load config at ${path}, using defaults`);
-    }
-  }
-
-  return {
-    ...DEFAULT_CONFIG,
-    ...fileConfig,
+/**
+ * Updates global configuration with partial overrides.
+ * @param overrides Partial options to apply to current configuration.
+ */
+export function setConfig(overrides: Partial<PythonUtilsConfig>): void {
+  activeConfig = {
+    ...activeConfig,
+    ...overrides,
   };
 }
 
 /**
- * Type guard for validating config integrity
+ * Resets the active configuration back to the default values.
  */
-export function isValidConfig(config: any): config is AppConfig {
-  return (
-    typeof config.host === 'string' &&
-    typeof config.port === 'number' &&
-    typeof config.debug === 'boolean'
-  );
+export function resetConfig(): void {
+  activeConfig = { ...defaultConfig };
 }
