@@ -1,47 +1,33 @@
 /**
- * Core interface definitions for python-utils-73
+ * generic utility types for python-utils-73 data handling
  */
 
-export interface PythonConfig {
-  interpreterPath: string;
-  version: string;
-  virtualEnv?: string;
-}
+export type Nullable<T> = T | null | undefined;
 
-export interface ExecutionResult {
-  output: string;
-  exitCode: number;
-  error?: string;
-}
+export type DeepPartial<T> = {
+  [P in keyof T]?: T[P] extends (infer U)[]
+    ? DeepPartial<U>[]
+    : T[P] extends object
+    ? DeepPartial<T[P]>
+    : T[P];
+};
 
-export interface TaskMetadata {
-  id: string;
+export interface DataEnvelope<T> {
+  payload: T;
   timestamp: number;
-  tags: string[];
+  metadata: Record<string, unknown>;
 }
 
-export type ProcessStatus = 'pending' | 'running' | 'completed' | 'failed';
+export const isDefined = <T>(value: Nullable<T>): value is T => {
+  return value !== null && value !== undefined;
+};
 
-export interface JobState {
-  jobId: string;
-  status: ProcessStatus;
-  lastUpdated: Date;
-}
+export const wrapData = <T>(data: T, extra: Record<string, unknown> = {}): DataEnvelope<T> => ({
+  payload: data,
+  timestamp: Date.now(),
+  metadata: extra,
+});
 
-export interface ValidationResult {
-  isValid: boolean;
-  message?: string;
-  details?: Record<string, unknown>;
-}
-
-export interface LoggerConfig {
-  level: 'debug' | 'info' | 'warn' | 'error';
-  format: 'json' | 'text';
-  outputStream: NodeJS.WritableStream;
-}
-
-export const DEFAULT_PYTHON_VERSION = '3.10.0';
-
-export const SUPPORTED_EXTENSIONS = ['.py', '.pyi', '.pyx'] as const;
-
-export type SupportedExtension = typeof SUPPORTED_EXTENSIONS[number];
+export const extractValue = <T, K extends keyof T>(obj: T, key: K): T[K] => {
+  return obj[key];
+};
