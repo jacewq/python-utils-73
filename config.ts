@@ -1,63 +1,45 @@
+import { readFileSync } from 'fs';
+
 export interface AppConfig {
   host: string;
   port: number;
   debug: boolean;
-  timeoutMs: number;
-  maxRetries: number;
-  env: 'development' | 'staging' | 'production';
 }
 
 const DEFAULT_CONFIG: AppConfig = {
   host: '127.0.0.1',
-  port: 8000,
+  port: 8080,
   debug: false,
-  timeoutMs: 5000,
-  maxRetries: 3,
-  env: 'development'
 };
 
-export class ConfigLoader {
-  private config: AppConfig;
+/**
+ * Merges file-based config with system defaults
+ */
+export function loadConfig(path?: string): AppConfig {
+  let fileConfig: Partial<AppConfig> = {};
 
-  constructor(initialOverrides: Partial<AppConfig> = {}) {
-    this.config = this.load(initialOverrides);
-  }
-
-  /**
-   * Merges defaults with environment variable overrides and explicit parameters.
-   */
-  private load(overrides: Partial<AppConfig>): AppConfig {
-    const envConfig: Partial<AppConfig> = {};
-
-    if (typeof process !== 'undefined' && process.env) {
-      if (process.env.APP_HOST) envConfig.host = process.env.APP_HOST;
-      if (process.env.APP_PORT) {
-        const parsed = parseInt(process.env.APP_PORT, 10);
-        if (!isNaN(parsed)) envConfig.port = parsed;
-      }
-      if (process.env.APP_DEBUG) {
-        envConfig.debug = process.env.APP_DEBUG.toLowerCase() === 'true';
-      }
-      if (process.env.APP_ENV) {
-        const envVal = process.env.APP_ENV as AppConfig['env'];
-        if (['development', 'staging', 'production'].includes(envVal)) {
-          envConfig.env = envVal;
-        }
-      }
+  if (path) {
+    try {
+      const raw = readFileSync(path, 'utf-8');
+      fileConfig = JSON.parse(raw) as Partial<AppConfig>;
+    } catch (err) {
+      console.error(`Failed to load config at ${path}, using defaults`);
     }
-
-    return {
-      ...DEFAULT_CONFIG,
-      ...envConfig,
-      ...overrides
-    };
   }
 
-  public get<K extends keyof AppConfig>(key: K): AppConfig[K] {
-    return this.config[key];
-  }
+  return {
+    ...DEFAULT_CONFIG,
+    ...fileConfig,
+  };
+}
 
-  public getAll(): Readonly<AppConfig> {
-    return { ...this.config };
-  }
+/**
+ * Type guard for validating config integrity
+ */
+export function isValidConfig(config: any): config is AppConfig {
+  return (
+    typeof config.host === 'string' &&
+    typeof config.port === 'number' &&
+    typeof config.debug === 'boolean'
+  );
 }
