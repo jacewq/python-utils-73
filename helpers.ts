@@ -1,34 +1,29 @@
-import * as fs from 'fs';
-import * as path from 'path';
-
-interface LoggerOptions {
-  logDir: string;
-  maxSizeBytes: number;
-  maxFiles: number;
+export interface ProcessedData {
+  id: string;
+  value: number;
 }
 
-export const setupLogger = (options: LoggerOptions) => {
-  if (!fs.existsSync(options.logDir)) {
-    fs.mkdirSync(options.logDir, { recursive: true });
+export const validateInput = (input: unknown): input is ProcessedData => {
+  if (typeof input !== 'object' || input === null) return false;
+  const data = input as Record<string, unknown>;
+  return (
+    typeof data.id === 'string' &&
+    typeof data.value === 'number' &&
+    !Number.isNaN(data.value)
+  );
+};
+
+export const processInputBatch = (items: unknown[]): ProcessedData[] => {
+  const validItems: ProcessedData[] = [];
+
+  for (const item of items) {
+    // validate schema before processing
+    if (validateInput(item)) {
+      validItems.push(item);
+    } else {
+      console.warn('Skipping invalid record in processing loop:', item);
+    }
   }
 
-  const logFilePath = path.join(options.logDir, 'app.log');
-
-  const rotateLogs = () => {
-    if (fs.existsSync(logFilePath) && fs.statSync(logFilePath).size >= options.maxSizeBytes) {
-      for (let i = options.maxFiles - 1; i >= 0; i--) {
-        const oldFile = i === 0 ? logFilePath : `${logFilePath}.${i}`;
-        const newFile = `${logFilePath}.${i + 1}`;
-        if (fs.existsSync(oldFile)) fs.renameSync(oldFile, newFile);
-      }
-    }
-  };
-
-  return {
-    log: (message: string) => {
-      rotateLogs();
-      const entry = `[${new Date().toISOString()}] ${message}\n`;
-      fs.appendFileSync(logFilePath, entry);
-    }
-  };
+  return validItems;
 };
