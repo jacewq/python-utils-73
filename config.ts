@@ -1,48 +1,46 @@
 /**
- * Configuration settings for Python-style utility functions.
+ * Configuration interface for python-utils-73 execution settings
  */
-export interface PythonUtilsConfig {
-  /** Default character encoding used for text processing. */
-  encoding: string;
-  /** Maximum allowed sequence length for safety checks. */
-  maxSequenceLength: number;
-  /** Enable strict type coercion matching Python semantics. */
-  strictCoercion: boolean;
-  /** Custom logger function for internal utility warnings. */
-  logger?: (message: string) => void;
+export interface AppConfig {
+  readonly environment: 'development' | 'production' | 'testing';
+  readonly retryAttempts: number;
+  readonly timeoutMs: number;
+  readonly enableLogging: boolean;
 }
 
-/** Default configuration instance. */
-const defaultConfig: Readonly<PythonUtilsConfig> = {
-  encoding: 'utf-8',
-  maxSequenceLength: 10000,
-  strictCoercion: false,
+/**
+ * Default configuration instance with strict typing
+ */
+export const defaultConfig: AppConfig = {
+  environment: 'production',
+  retryAttempts: 3,
+  timeoutMs: 5000,
+  enableLogging: true,
 };
 
-let activeConfig: PythonUtilsConfig = { ...defaultConfig };
+/**
+ * Validates provided partial config against requirements
+ * @param config - The configuration object to validate
+ * @returns True if configuration is valid, otherwise false
+ */
+export const validateConfig = (config: Partial<AppConfig>): boolean => {
+  if (config.retryAttempts !== undefined && config.retryAttempts < 0) {
+    return false;
+  }
+  if (config.timeoutMs !== undefined && config.timeoutMs < 0) {
+    return false;
+  }
+  return true;
+};
 
 /**
- * Retrieves the current global configuration object.
- * @returns The active PythonUtilsConfig options.
+ * Merges user provided config with defaults
+ * @param customConfig - User defined settings
+ * @returns Full validated AppConfig object
  */
-export function getConfig(): Readonly<PythonUtilsConfig> {
-  return { ...activeConfig };
-}
-
-/**
- * Updates global configuration with partial overrides.
- * @param overrides Partial options to apply to current configuration.
- */
-export function setConfig(overrides: Partial<PythonUtilsConfig>): void {
-  activeConfig = {
-    ...activeConfig,
-    ...overrides,
+export const getMergedConfig = (customConfig: Partial<AppConfig>): AppConfig => {
+  return {
+    ...defaultConfig,
+    ...customConfig,
   };
-}
-
-/**
- * Resets the active configuration back to the default values.
- */
-export function resetConfig(): void {
-  activeConfig = { ...defaultConfig };
-}
+};
