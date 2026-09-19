@@ -1,46 +1,31 @@
-/**
- * Configuration interface for python-utils-73 execution settings
- */
+import * as fs from 'fs';
+
 export interface AppConfig {
-  readonly environment: 'development' | 'production' | 'testing';
-  readonly retryAttempts: number;
-  readonly timeoutMs: number;
-  readonly enableLogging: boolean;
+  host: string;
+  port: number;
+  debug: boolean;
 }
 
-/**
- * Default configuration instance with strict typing
- */
-export const defaultConfig: AppConfig = {
-  environment: 'production',
-  retryAttempts: 3,
-  timeoutMs: 5000,
-  enableLogging: true,
+const DEFAULT_CONFIG: AppConfig = {
+  host: 'localhost',
+  port: 8080,
+  debug: false,
 };
 
 /**
- * Validates provided partial config against requirements
- * @param config - The configuration object to validate
- * @returns True if configuration is valid, otherwise false
+ * Loads configuration from a JSON file or returns defaults
  */
-export const validateConfig = (config: Partial<AppConfig>): boolean => {
-  if (config.retryAttempts !== undefined && config.retryAttempts < 0) {
-    return false;
+export function loadConfig(path?: string): AppConfig {
+  if (!path || !fs.existsSync(path)) {
+    return { ...DEFAULT_CONFIG };
   }
-  if (config.timeoutMs !== undefined && config.timeoutMs < 0) {
-    return false;
-  }
-  return true;
-};
 
-/**
- * Merges user provided config with defaults
- * @param customConfig - User defined settings
- * @returns Full validated AppConfig object
- */
-export const getMergedConfig = (customConfig: Partial<AppConfig>): AppConfig => {
-  return {
-    ...defaultConfig,
-    ...customConfig,
-  };
-};
+  try {
+    const rawData = fs.readFileSync(path, 'utf-8');
+    const parsed: Partial<AppConfig> = JSON.parse(rawData);
+    return { ...DEFAULT_CONFIG, ...parsed };
+  } catch (error) {
+    console.error(`Failed to parse config at ${path}, using defaults`, error);
+    return { ...DEFAULT_CONFIG };
+  }
+}
