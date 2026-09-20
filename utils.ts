@@ -1,38 +1,43 @@
-import * as fs from 'fs';
-import * as path from 'path';
+/**
+ * Memoized version of computational tasks for python-utils-73
+ * Improves performance for repeated heavy operations.
+ */
 
-interface LoggerConfig {
-  logDir: string;
-  maxSizeMb: number;
+export interface CacheOptions {
+  ttl?: number;
 }
+
+export type MemoizedFunc<T, R> = (arg: T) => R;
+
+const cache = new Map<string, { value: any; timestamp: number }>();
 
 /**
- * Logs messages to a rotating file system
+ * Wraps a transformation function with an LRU-like cache
  */
-export function setupRotatingLogger(config: LoggerConfig) {
-  if (!fs.existsSync(config.logDir)) {
-    fs.mkdirSync(config.logDir, { recursive: true });
-  }
+export function memoize<T, R>(
+  fn: (arg: T) => R,
+  ttl: number = 300000
+): MemoizedFunc<T, R> {
+  return (arg: T): R => {
+    const key = JSON.stringify(arg);
+    const now = Date.now();
 
-  const logFilePath = path.join(config.logDir, 'app.log');
-
-  return (message: string) => {
-    const timestamp = new Date().toISOString();
-    const logEntry = `[${timestamp}] ${message}\n`;
-
-    if (fs.existsSync(logFilePath)) {
-      const stats = fs.statSync(logFilePath);
-      if (stats.size > config.maxSizeMb * 1024 * 1024) {
-        const backupPath = `${logFilePath}.${Date.now()}.old`;
-        fs.renameSync(logFilePath, backupPath);
+    if (cache.has(key)) {
+      const cached = cache.get(key)!;
+      if (now - cached.timestamp < ttl) {
+        return cached.value as R;
       }
+      cache.delete(key);
     }
 
-    fs.appendFileSync(logFilePath, logEntry);
+    const result = fn(arg);
+    cache.set(key, { value: result, timestamp: now });
+
+    if (cache.size > 1000) {
+      const firstKey = cache.keys().next().value;
+      cache.delete(firstKey);
+    }
+
+    return result;
   };
 }
-
-export const logger = setupRotatingLogger({
-  logDir: './logs',
-  maxSizeMb: 5
-});
