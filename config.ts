@@ -1,31 +1,37 @@
 import * as fs from 'fs';
 
-export interface AppConfig {
-  host: string;
+interface AppConfig {
   port: number;
   debug: boolean;
+  timeout: number;
 }
 
-const DEFAULT_CONFIG: AppConfig = {
-  host: 'localhost',
-  port: 8080,
+const defaultSettings: AppConfig = {
+  port: 3000,
   debug: false,
+  timeout: 5000,
 };
 
 /**
- * Loads configuration from a JSON file or returns defaults
+ * Merges user configuration with application defaults
  */
-export function loadConfig(path?: string): AppConfig {
-  if (!path || !fs.existsSync(path)) {
-    return { ...DEFAULT_CONFIG };
-  }
-
+export function loadConfig(path: string): AppConfig {
   try {
+    if (!fs.existsSync(path)) {
+      return { ...defaultSettings };
+    }
+
     const rawData = fs.readFileSync(path, 'utf-8');
-    const parsed: Partial<AppConfig> = JSON.parse(rawData);
-    return { ...DEFAULT_CONFIG, ...parsed };
+    const userConfig: Partial<AppConfig> = JSON.parse(rawData);
+
+    return {
+      ...defaultSettings,
+      ...userConfig,
+    };
   } catch (error) {
-    console.error(`Failed to parse config at ${path}, using defaults`, error);
-    return { ...DEFAULT_CONFIG };
+    console.error('Failed to parse config file, using defaults');
+    return { ...defaultSettings };
   }
 }
+
+export const config = loadConfig('./config.json');
