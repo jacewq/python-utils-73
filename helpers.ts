@@ -1,39 +1,36 @@
 /**
- * Safely parses input for python-utils-73 execution
+ * Utility functions for common string and collection operations
  */
-export function safeParseJson<T>(input: string, fallback: T): T {
-  if (!input || typeof input !== 'string') {
-    return fallback;
-  }
 
+export const capitalize = (str: string): string => {
+  if (!str) return '';
+  return str.charAt(0).toUpperCase() + str.slice(1);
+};
+
+export const chunkArray = <T>(array: T[], size: number): T[][] => {
+  const result: T[][] = [];
+  for (let i = 0; i < array.length; i += size) {
+    result.push(array.slice(i, i + size));
+  }
+  return result;
+};
+
+export const delay = (ms: number): Promise<void> => {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+};
+
+export const isNotEmpty = <T>(array: T[] | null | undefined): boolean => {
+  return Array.isArray(array) && array.length > 0;
+};
+
+export const safeJsonParse = <T>(json: string, fallback: T): T => {
   try {
-    return JSON.parse(input) as T;
-  } catch (error) {
-    console.error('Failed to parse input string:', error);
+    return JSON.parse(json) as T;
+  } catch {
     return fallback;
   }
-}
+};
 
-/**
- * Executes potentially failing operations with fallback
- */
-export function executeTask<T>(task: () => T, fallback: T): T {
-  try {
-    return task();
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unknown error';
-    console.error(`Task execution failed: ${message}`);
-    return fallback;
-  }
-}
-
-/**
- * Validates object schema presence for utility processing
- */
-export function validatePresence(obj: unknown, keys: string[]): boolean {
-  if (typeof obj !== 'object' || obj === null) {
-    return false;
-  }
-
-  return keys.every((key) => Object.prototype.hasOwnProperty.call(obj, key));
-}
+export const getObjectValue = <T, K extends keyof T>(obj: T, key: K): T[K] => {
+  return obj[key];
+};
