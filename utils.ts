@@ -1,43 +1,31 @@
 /**
- * Memoized version of computational tasks for python-utils-73
- * Improves performance for repeated heavy operations.
+ * Python-utils-73 common utility collection
  */
 
-export interface CacheOptions {
-  ttl?: number;
-}
+export const sleep = (ms: number): Promise<void> => 
+  new Promise((resolve) => setTimeout(resolve, ms));
 
-export type MemoizedFunc<T, R> = (arg: T) => R;
+export const chunkArray = <T>(array: T[], size: number): T[][] => {
+  return Array.from({ length: Math.ceil(array.length / size) }, (_, i) =>
+    array.slice(i * size, i * size + size)
+  );
+};
 
-const cache = new Map<string, { value: any; timestamp: number }>();
+export const isObject = (item: unknown): item is Record<string, unknown> => {
+  return item !== null && typeof item === 'object' && !Array.isArray(item);
+};
 
-/**
- * Wraps a transformation function with an LRU-like cache
- */
-export function memoize<T, R>(
-  fn: (arg: T) => R,
-  ttl: number = 300000
-): MemoizedFunc<T, R> {
-  return (arg: T): R => {
-    const key = JSON.stringify(arg);
-    const now = Date.now();
-
-    if (cache.has(key)) {
-      const cached = cache.get(key)!;
-      if (now - cached.timestamp < ttl) {
-        return cached.value as R;
-      }
-      cache.delete(key);
-    }
-
-    const result = fn(arg);
-    cache.set(key, { value: result, timestamp: now });
-
-    if (cache.size > 1000) {
-      const firstKey = cache.keys().next().value;
-      cache.delete(firstKey);
-    }
-
+export const memoize = <T extends (...args: any[]) => any>(fn: T): T => {
+  const cache = new Map<string, ReturnType<T>>();
+  return ((...args: Parameters<T>) => {
+    const key = JSON.stringify(args);
+    if (cache.has(key)) return cache.get(key);
+    const result = fn(...args);
+    cache.set(key, result);
     return result;
-  };
-}
+  }) as T;
+};
+
+export const getEnv = (key: string, fallback: string): string => {
+  return typeof process !== 'undefined' && process.env[key] ? process.env[key]! : fallback;
+};
