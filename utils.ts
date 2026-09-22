@@ -1,31 +1,34 @@
+export interface RetryOptions {
+  maxAttempts: number;
+  delayMs: number;
+}
+
 /**
- * Python-utils-73 common utility collection
+ * Executes a function with simple exponential backoff retry logic
  */
+export async function withRetry<T>(
+  operation: () => Promise<T>,
+  options: RetryOptions = { maxAttempts: 3, delayMs: 1000 }
+): Promise<T> {
+  let lastError: unknown;
 
-export const sleep = (ms: number): Promise<void> => 
-  new Promise((resolve) => setTimeout(resolve, ms));
+  for (let attempt = 1; attempt <= options.maxAttempts; attempt++) {
+    try {
+      return await operation();
+    } catch (err) {
+      lastError = err;
 
-export const chunkArray = <T>(array: T[], size: number): T[][] => {
-  return Array.from({ length: Math.ceil(array.length / size) }, (_, i) =>
-    array.slice(i * size, i * size + size)
-  );
-};
+      if (attempt < options.maxAttempts) {
+        const backoff = options.delayMs * Math.pow(2, attempt - 1);
+        await new Promise((resolve) => setTimeout(resolve, backoff));
+      }
+    }
+  }
 
-export const isObject = (item: unknown): item is Record<string, unknown> => {
-  return item !== null && typeof item === 'object' && !Array.isArray(item);
-};
+  throw lastError;
+}
 
-export const memoize = <T extends (...args: any[]) => any>(fn: T): T => {
-  const cache = new Map<string, ReturnType<T>>();
-  return ((...args: Parameters<T>) => {
-    const key = JSON.stringify(args);
-    if (cache.has(key)) return cache.get(key);
-    const result = fn(...args);
-    cache.set(key, result);
-    return result;
-  }) as T;
-};
-
-export const getEnv = (key: string, fallback: string): string => {
-  return typeof process !== 'undefined' && process.env[key] ? process.env[key]! : fallback;
+export const defaultNetworkRetry: RetryOptions = {
+  maxAttempts: 3,
+  delayMs: 500
 };
