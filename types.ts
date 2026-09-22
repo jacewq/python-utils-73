@@ -1,33 +1,36 @@
-/**
- * generic utility types for python-utils-73 data handling
- */
-
-export type Nullable<T> = T | null | undefined;
-
-export type DeepPartial<T> = {
-  [P in keyof T]?: T[P] extends (infer U)[]
-    ? DeepPartial<U>[]
-    : T[P] extends object
-    ? DeepPartial<T[P]>
-    : T[P];
-};
-
-export interface DataEnvelope<T> {
-  payload: T;
-  timestamp: number;
-  metadata: Record<string, unknown>;
+export interface PythonProcessResult {
+  exitCode: number;
+  stdout: string;
+  stderr: string;
+  durationMs: number;
 }
 
-export const isDefined = <T>(value: Nullable<T>): value is T => {
-  return value !== null && value !== undefined;
+export interface PythonConfig {
+  executablePath: string;
+  venvPath?: string;
+  timeoutMs?: number;
+  env?: Record<string, string>;
+}
+
+export interface ExecutionOptions {
+  cwd?: string;
+  args?: string[];
+  captureOutput?: boolean;
+}
+
+export type PythonError = {
+  code: 'EXECUTION_FAILED' | 'TIMEOUT' | 'PATH_NOT_FOUND';
+  message: string;
+  originalError?: Error;
 };
 
-export const wrapData = <T>(data: T, extra: Record<string, unknown> = {}): DataEnvelope<T> => ({
-  payload: data,
-  timestamp: Date.now(),
-  metadata: extra,
-});
+export const DEFAULT_PYTHON_CONFIG: PythonConfig = {
+  executablePath: 'python3',
+  timeoutMs: 30000,
+};
 
-export const extractValue = <T, K extends keyof T>(obj: T, key: K): T[K] => {
-  return obj[key];
+export type CleanupResult = {
+  success: boolean;
+  filesRemoved: number;
+  errors: string[];
 };
