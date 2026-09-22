@@ -1,34 +1,53 @@
-export interface RetryOptions {
-  maxAttempts: number;
-  delayMs: number;
+/**
+ * Utility functions for python-utils-73
+ */
+
+export interface ProcessResult {
+  success: boolean;
+  output: string;
+  error?: string;
 }
 
 /**
- * Executes a function with simple exponential backoff retry logic
+ * Cleans string output from python execution environments
  */
-export async function withRetry<T>(
-  operation: () => Promise<T>,
-  options: RetryOptions = { maxAttempts: 3, delayMs: 1000 }
-): Promise<T> {
-  let lastError: unknown;
-
-  for (let attempt = 1; attempt <= options.maxAttempts; attempt++) {
-    try {
-      return await operation();
-    } catch (err) {
-      lastError = err;
-
-      if (attempt < options.maxAttempts) {
-        const backoff = options.delayMs * Math.pow(2, attempt - 1);
-        await new Promise((resolve) => setTimeout(resolve, backoff));
-      }
-    }
+export const sanitizeOutput = (data: unknown): string => {
+  if (typeof data !== 'string') {
+    return String(data ?? '');
   }
-
-  throw lastError;
-}
-
-export const defaultNetworkRetry: RetryOptions = {
-  maxAttempts: 3,
-  delayMs: 500
+  return data.trim().replace(/\r\n/g, '\n');
 };
+
+/**
+ * Validates script execution status
+ */
+export const validateExecution = (code: number, stderr: string): ProcessResult => {
+  const success = code === 0;
+  return {
+    success,
+    output: '',
+    error: success ? undefined : stderr || 'Unknown execution error'
+  };
+};
+
+/**
+ * Groups python library path definitions
+ */
+export const getPythonLibPath = (base: string, env: string = 'prod'): string => {
+  const paths: Record<string, string> = {
+    prod: '/usr/local/lib/python3.10/site-packages',
+    dev: './venv/lib/python3.10/site-packages'
+  };
+  return `${base}/${paths[env] || paths.prod}`;
+};
+
+/**
+ * Orchestrates sequential module processing
+ */
+export async function runProcessChain(tasks: Array<() => Promise<boolean>>): Promise<boolean> {
+  for (const task of tasks) {
+    const status = await task();
+    if (!status) return false;
+  }
+  return true;
+}
