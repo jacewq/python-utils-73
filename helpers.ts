@@ -1,36 +1,46 @@
 /**
- * Utility functions for common string and collection operations
+ * Utility functions for python-utils-73
  */
 
-export const capitalize = (str: string): string => {
-  if (!str) return '';
-  return str.charAt(0).toUpperCase() + str.slice(1);
+export type ProcessResult = {
+  success: boolean;
+  output: string | null;
+  error: Error | null;
 };
 
-export const chunkArray = <T>(array: T[], size: number): T[][] => {
-  const result: T[][] = [];
-  for (let i = 0; i < array.length; i += size) {
-    result.push(array.slice(i, i + size));
-  }
-  return result;
+/**
+ * Formats a command string to ensure safe shell execution
+ */
+export const sanitizeCommand = (cmd: string): string => {
+  return cmd.trim().replace(/['"]/g, '');
 };
 
-export const delay = (ms: number): Promise<void> => {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+/**
+ * Executes a transformation on python utility outputs
+ */
+export const formatOutput = (raw: string): string => {
+  return raw.split('\n').filter(Boolean).map(line => line.trim()).join('\n');
 };
 
-export const isNotEmpty = <T>(array: T[] | null | undefined): boolean => {
-  return Array.isArray(array) && array.length > 0;
+/**
+ * Standardized error handler for utility processes
+ */
+export const handleError = (err: unknown): ProcessResult => {
+  const error = err instanceof Error ? err : new Error(String(err));
+  return {
+    success: false,
+    output: null,
+    error,
+  };
 };
 
-export const safeJsonParse = <T>(json: string, fallback: T): T => {
-  try {
-    return JSON.parse(json) as T;
-  } catch {
-    return fallback;
-  }
-};
-
-export const getObjectValue = <T, K extends keyof T>(obj: T, key: K): T[K] => {
-  return obj[key];
+/**
+ * Factory for successful execution objects
+ */
+export const createSuccess = (output: string): ProcessResult => {
+  return {
+    success: true,
+    output: formatOutput(output),
+    error: null,
+  };
 };
