@@ -1,28 +1,38 @@
 interface RetryOptions {
-  maxAttempts: number;
-  backoffMs: number;
+  maxRetries: number;
+  delayMs: number;
 }
 
 /**
- * executes an asynchronous function with exponential backoff
+ * Executes a function with a simple exponential backoff retry strategy
  */
 export async function withRetry<T>(
   operation: () => Promise<T>,
-  options: RetryOptions = { maxAttempts: 3, backoffMs: 1000 }
+  options: RetryOptions = { maxRetries: 3, delayMs: 1000 }
 ): Promise<T> {
-  let lastError: any;
+  let lastError: unknown;
 
-  for (let attempt = 1; attempt <= options.maxAttempts; attempt++) {
+  for (let attempt = 0; attempt <= options.maxRetries; attempt++) {
     try {
       return await operation();
-    } catch (error) {
-      lastError = error;
-      if (attempt === options.maxAttempts) break;
-
-      const delay = options.backoffMs * Math.pow(2, attempt - 1);
-      await new Promise((resolve) => setTimeout(resolve, delay));
+    } catch (err) {
+      lastError = err;
+      if (attempt === options.maxRetries) break;
+      
+      const backoff = options.delayMs * Math.pow(2, attempt);
+      await new Promise((resolve) => setTimeout(resolve, backoff));
     }
   }
 
   throw lastError;
 }
+
+export const fetchWithRetry = async (url: string, init?: RequestInit) => {
+  return withRetry(async () => {
+    const response = await fetch(url, init);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    return response;
+  });
+};
