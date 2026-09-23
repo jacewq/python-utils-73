@@ -1,37 +1,34 @@
-import * as fs from 'fs';
-
-interface AppConfig {
-  port: number;
-  debug: boolean;
-  timeout: number;
+export interface ProcessingConfig {
+  maxRetries: number;
+  timeoutMs: number;
+  inputPath: string;
 }
 
-const defaultSettings: AppConfig = {
-  port: 3000,
-  debug: false,
-  timeout: 5000,
+export const validateConfig = (config: unknown): config is ProcessingConfig => {
+  if (typeof config !== 'object' || config === null) return false;
+
+  const c = config as Record<string, unknown>;
+
+  // ensure required fields exist and types match
+  const hasValidRetries = typeof c.maxRetries === 'number' && c.maxRetries >= 0;
+  const hasValidTimeout = typeof c.timeoutMs === 'number' && c.timeoutMs > 0;
+  const hasValidPath = typeof c.inputPath === 'string' && c.inputPath.length > 0;
+
+  return hasValidRetries && hasValidTimeout && hasValidPath;
 };
 
-/**
- * Merges user configuration with application defaults
- */
-export function loadConfig(path: string): AppConfig {
-  try {
-    if (!fs.existsSync(path)) {
-      return { ...defaultSettings };
-    }
-
-    const rawData = fs.readFileSync(path, 'utf-8');
-    const userConfig: Partial<AppConfig> = JSON.parse(rawData);
-
-    return {
-      ...defaultSettings,
-      ...userConfig,
-    };
-  } catch (error) {
-    console.error('Failed to parse config file, using defaults');
-    return { ...defaultSettings };
+export const processMainLoop = (data: unknown[], config: unknown): void => {
+  if (!validateConfig(config)) {
+    throw new Error('invalid processing configuration provided');
   }
-}
 
-export const config = loadConfig('./config.json');
+  // execute core processing with validated config
+  for (const item of data) {
+    if (item === null || typeof item !== 'object') {
+      console.warn('skipping malformed input item');
+      continue;
+    }
+    
+    console.log(`processing item with timeout ${config.timeoutMs}ms`);
+  }
+};
