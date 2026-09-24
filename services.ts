@@ -1,38 +1,35 @@
-interface RetryOptions {
-  maxRetries: number;
-  delayMs: number;
-}
+import { z } from 'zod';
+
+const InputSchema = z.object({
+  id: z.string().uuid(),
+  payload: z.string().min(1),
+  timestamp: z.number().positive(),
+});
+
+type ProcessedItem = z.infer<typeof InputSchema>;
 
 /**
- * Executes a function with a simple exponential backoff retry strategy
+ * Core processing service for python-utils-73 data pipelines.
  */
-export async function withRetry<T>(
-  operation: () => Promise<T>,
-  options: RetryOptions = { maxRetries: 3, delayMs: 1000 }
-): Promise<T> {
-  let lastError: unknown;
-
-  for (let attempt = 0; attempt <= options.maxRetries; attempt++) {
+export const runProcessingLoop = (items: unknown[]): void => {
+  for (const item of items) {
     try {
-      return await operation();
-    } catch (err) {
-      lastError = err;
-      if (attempt === options.maxRetries) break;
+      // Validate item structure against schema
+      const validated = InputSchema.parse(item);
       
-      const backoff = options.delayMs * Math.pow(2, attempt);
-      await new Promise((resolve) => setTimeout(resolve, backoff));
+      console.log(`Processing item ${validated.id}: ${validated.payload}`);
+      
+      // Execute business logic here
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        console.error('Validation failed for item:', err.flatten());
+      } else {
+        console.error('Unexpected processing error:', err);
+      }
     }
   }
+};
 
-  throw lastError;
-}
-
-export const fetchWithRetry = async (url: string, init?: RequestInit) => {
-  return withRetry(async () => {
-    const response = await fetch(url, init);
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    return response;
-  });
+export const initializeService = () => {
+  console.log('python-utils-73 processing service initialized');
 };
