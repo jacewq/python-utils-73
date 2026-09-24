@@ -1,36 +1,42 @@
-export interface PythonProcessResult {
+/**
+ * Type definitions for python-utils-73 execution context
+ */
+
+export interface PythonConfig {
+  interpreterPath: string;
+  version: string;
+  envVars?: Record<string, string>;
+  timeoutMs: number;
+}
+
+export interface ExecutionResult {
   exitCode: number;
   stdout: string;
   stderr: string;
   durationMs: number;
 }
 
-export interface PythonConfig {
-  executablePath: string;
-  venvPath?: string;
-  timeoutMs?: number;
-  env?: Record<string, string>;
+export interface ScriptTask {
+  id: string;
+  scriptPath: string;
+  args: string[];
+  retries: number;
 }
 
-export interface ExecutionOptions {
-  cwd?: string;
-  args?: string[];
+/**
+ * Configuration options for execution hooks
+ */
+export type ExecutionOptions = {
   captureOutput?: boolean;
+  workingDir?: string;
+};
+
+/**
+ * Validator interface for python script validation
+ */
+export interface ScriptValidator {
+  validate(scriptPath: string): Promise<boolean>;
+  formatError(error: unknown): string;
 }
 
-export type PythonError = {
-  code: 'EXECUTION_FAILED' | 'TIMEOUT' | 'PATH_NOT_FOUND';
-  message: string;
-  originalError?: Error;
-};
-
-export const DEFAULT_PYTHON_CONFIG: PythonConfig = {
-  executablePath: 'python3',
-  timeoutMs: 30000,
-};
-
-export type CleanupResult = {
-  success: boolean;
-  filesRemoved: number;
-  errors: string[];
-};
+export type Logger = (message: string, level?: 'info' | 'error' | 'warn') => void;
