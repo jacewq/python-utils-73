@@ -1,73 +1,77 @@
-import * as fs from 'fs';
-import * as path from 'path';
-
-export interface LoggerOptions {
-  logDir: string;
-  maxSizeBytes?: number;
-  maxFiles?: number;
+export interface ProcessTaskInput {
+  id: string;
+  command: string;
+  args?: Record<string, unknown>;
+  timeoutMs?: number;
 }
 
-export class RotatingLogger {
-  private logDir: string;
-  private maxSizeBytes: number;
-  private maxFiles: number;
-  private currentFilePath: string;
+export interface ValidationResult {
+  valid: boolean;
+  errors: string[];
+}
 
-  constructor(options: LoggerOptions) {
-    this.logDir = options.logDir;
-    this.maxSizeBytes = options.maxSizeBytes ?? 1024 * 1024;
-    this.maxFiles = options.maxFiles ?? 5;
-    this.currentFilePath = path.join(this.logDir, 'app.log');
+export interface ProcessSummary {
+  processedCount: number;
+  failedCount: number;
+  errors: Array<{ id: string; errors: string[] }>;
+}
 
-    if (!fs.existsSync(this.logDir)) {
-      fs.mkdirSync(this.logDir, { recursive: true });
+/**
+ * Validates a single task input object before execution.
+ */
+export function validateTaskInput(input: unknown): ValidationResult {
+  const errors: string[] = [];
+  if (!input || typeof input !== 'object') {
+    return { valid: false, errors: ['Input must be a non-null object'] };
+  }
+
+  const record = input as Record<string, unknown>;
+
+  if (typeof record.id !== 'string' || record.id.trim() === '') {
+    errors.push('Task id must be a non-empty string');
+  }
+
+  if (typeof record.command !== 'string' || record.command.trim() === '') {
+    errors.push('Task command must be a non-empty string');
+  }
+
+  if (record.timeoutMs !== undefined) {
+    if (typeof record.timeoutMs !== 'number' || record.timeoutMs <= 0) {
+      errors.push('Task timeoutMs must be a positive number');
     }
   }
 
-  private rotateLogs(): void {
-    if (!fs.existsSync(this.currentFilePath)) return;
-
-    const stats = fs.statSync(this.currentFilePath);
-    if (stats.size < this.maxSizeBytes) return;
-
-    for (let i = this.maxFiles - 1; i >= 1; i--) {
-      const oldPath = path.join(this.logDir, `app.log.${i}`);
-      const newPath = path.join(this.logDir, `app.log.${i + 1}`);
-
-      if (fs.existsSync(oldPath)) {
-        if (i + 1 > this.maxFiles) {
-          fs.unlinkSync(oldPath);
-        } else {
-          fs.renameSync(oldPath, newPath);
-        }
-      }
-    }
-
-    fs.renameSync(this.currentFilePath, path.join(this.logDir, 'app.log.1'));
-  }
-
-  public log(level: 'INFO' | 'WARN' | 'ERROR', message: string): void {
-    this.rotateLogs();
-    const timestamp = new Date().toISOString();
-    const formattedMessage = `[${timestamp}] [${level}] ${message}\n`;
-
-    fs.appendFileSync(this.currentFilePath, formattedMessage, 'utf-8');
-    console.log(formattedMessage.trim());
-  }
-
-  public info(message: string): void {
-    this.log('INFO', message);
-  }
-
-  public warn(message: string): void {
-    this.log('WARN', message);
-  }
-
-  public error(message: string): void {
-    this.log('ERROR', message);
-  }
+  return {
+    valid: errors.length === 0,
+    errors,
+  };
 }
 
-export function setupLogger(options: LoggerOptions): RotatingLogger {
-  return new RotatingLogger(options);
+/**
+ * Main batch processing loop with input validation safeguards.
+ */
+export function processTaskBatch(tasks: unknown[]): ProcessSummary {
+  const summary: ProcessSummary = {
+    processedCount: 0,
+    failedCount: 0,
+    errors: [],
+  };
+
+  for (const item of tasks) {
+    const validation = validateTaskInput(item);
+
+    if (!validation.valid) {
+      summary.failedCount++;
+      const taskId = item && typeof item === 'object' && 'id' in item && typeof (item as Record<string, unknown>).id === 'string'
+        ? (item as Record<string, unknown>).id as string
+        : 'unknown';
+      summary.errors.push({ id: taskId, errors: validation.errors });
+      continue;
+    }
+
+    // Valid task ready for dispatch/execution
+    summary.processedCount++;
+  }
+
+  return summary;
 }
