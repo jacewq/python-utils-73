@@ -9,26 +9,35 @@ export const validateConfig = (config: unknown): config is ProcessingConfig => {
 
   const c = config as Record<string, unknown>;
 
-  // ensure required fields exist and types match
-  const hasValidRetries = typeof c.maxRetries === 'number' && c.maxRetries >= 0;
-  const hasValidTimeout = typeof c.timeoutMs === 'number' && c.timeoutMs > 0;
-  const hasValidPath = typeof c.inputPath === 'string' && c.inputPath.length > 0;
+  const isValid = 
+    typeof c.maxRetries === 'number' &&
+    c.maxRetries >= 0 &&
+    typeof c.timeoutMs === 'number' &&
+    c.timeoutMs > 0 &&
+    typeof c.inputPath === 'string' &&
+    c.inputPath.length > 0;
 
-  return hasValidRetries && hasValidTimeout && hasValidPath;
+  return isValid;
 };
 
 export const processMainLoop = (data: unknown[], config: unknown): void => {
   if (!validateConfig(config)) {
-    throw new Error('invalid processing configuration provided');
+    throw new Error('invalid configuration schema provided');
   }
 
-  // execute core processing with validated config
-  for (const item of data) {
-    if (item === null || typeof item !== 'object') {
-      console.warn('skipping malformed input item');
+  for (const entry of data) {
+    if (typeof entry !== 'object' || entry === null) {
+      console.warn('skipping invalid entry: not an object');
       continue;
     }
-    
-    console.log(`processing item with timeout ${config.timeoutMs}ms`);
+
+    const record = entry as Record<string, any>;
+    if (!record.id || typeof record.id !== 'string') {
+      console.warn('skipping record: missing identifier');
+      continue;
+    }
+
+    // Proceed with processing
+    console.log(`processing ${record.id} with timeout ${config.timeoutMs}`);
   }
 };
