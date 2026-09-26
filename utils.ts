@@ -1,77 +1,71 @@
-export interface ProcessTaskInput {
-  id: string;
-  command: string;
-  args?: Record<string, unknown>;
-  timeoutMs?: number;
-}
-
-export interface ValidationResult {
-  valid: boolean;
-  errors: string[];
-}
-
-export interface ProcessSummary {
-  processedCount: number;
-  failedCount: number;
-  errors: Array<{ id: string; errors: string[] }>;
-}
-
 /**
- * Validates a single task input object before execution.
+ * Flattens a deeply nested object into a single-level object with dot-delimited keys.
  */
-export function validateTaskInput(input: unknown): ValidationResult {
-  const errors: string[] = [];
-  if (!input || typeof input !== 'object') {
-    return { valid: false, errors: ['Input must be a non-null object'] };
-  }
+export function flattenObject(
+  obj: Record<string, any>,
+  prefix = ''
+): Record<string, any> {
+  const result: Record<string, any> = {};
 
-  const record = input as Record<string, unknown>;
+  for (const [key, value] of Object.entries(obj)) {
+    const newKey = prefix ? `${prefix}.${key}` : key;
 
-  if (typeof record.id !== 'string' || record.id.trim() === '') {
-    errors.push('Task id must be a non-empty string');
-  }
-
-  if (typeof record.command !== 'string' || record.command.trim() === '') {
-    errors.push('Task command must be a non-empty string');
-  }
-
-  if (record.timeoutMs !== undefined) {
-    if (typeof record.timeoutMs !== 'number' || record.timeoutMs <= 0) {
-      errors.push('Task timeoutMs must be a positive number');
+    if (
+      value !== null &&
+      typeof value === 'object' &&
+      !Array.isArray(value) &&
+      Object.keys(value).length > 0
+    ) {
+      Object.assign(result, flattenObject(value, newKey));
+    } else {
+      result[newKey] = value;
     }
   }
 
-  return {
-    valid: errors.length === 0,
-    errors,
-  };
+  return result;
 }
 
 /**
- * Main batch processing loop with input validation safeguards.
+ * Reconstructs a nested object from a flattened object with dot-delimited keys.
  */
-export function processTaskBatch(tasks: unknown[]): ProcessSummary {
-  const summary: ProcessSummary = {
-    processedCount: 0,
-    failedCount: 0,
-    errors: [],
-  };
+export function unflattenObject(
+  obj: Record<string, any>
+): Record<string, any> {
+  const result: Record<string, any> = {};
 
-  for (const item of tasks) {
-    const validation = validateTaskInput(item);
+  for (const [key, value] of Object.entries(obj)) {
+    const keys = key.split('.');
+    let current = result;
 
-    if (!validation.valid) {
-      summary.failedCount++;
-      const taskId = item && typeof item === 'object' && 'id' in item && typeof (item as Record<string, unknown>).id === 'string'
-        ? (item as Record<string, unknown>).id as string
-        : 'unknown';
-      summary.errors.push({ id: taskId, errors: validation.errors });
-      continue;
+    for (let i = 0; i < keys.length; i++) {
+      const k = keys[i];
+      if (i === keys.length - 1) {
+        current[k] = value;
+      } else {
+        if (!current[k] || typeof current[k] !== 'object') {
+          current[k] = {};
+        }
+        current = current[k];
+      }
     }
-
-    // Valid task ready for dispatch/execution
-    summary.processedCount++;
   }
 
-  return summary;
+  return result;
+}
+
+/**
+ * Groups an array of items by a key path or extraction function.
+ */
+export function groupBy<T>(
+  items: T[],
+  keySelector: (item: T) => string | number
+): Record<string | number, T[]> {
+  return items.reduce((acc, item) => {
+    const key = keySelector(item);
+    if (!acc[key]) {
+      acc[key] = [];
+    }
+    acc[key].push(item);
+    return acc;
+  }, {} as Record<string | number, T[]>);
 }
