@@ -1,71 +1,37 @@
-/**
- * Flattens a deeply nested object into a single-level object with dot-delimited keys.
- */
-export function flattenObject(
-  obj: Record<string, any>,
-  prefix = ''
-): Record<string, any> {
-  const result: Record<string, any> = {};
+export type PythonVersion = '2.7' | '3.8' | '3.11' | '3.12';
 
-  for (const [key, value] of Object.entries(obj)) {
-    const newKey = prefix ? `${prefix}.${key}` : key;
-
-    if (
-      value !== null &&
-      typeof value === 'object' &&
-      !Array.isArray(value) &&
-      Object.keys(value).length > 0
-    ) {
-      Object.assign(result, flattenObject(value, newKey));
-    } else {
-      result[newKey] = value;
-    }
-  }
-
-  return result;
+export interface ExecutionResult {
+  output: string;
+  exitCode: number;
+  durationMs: number;
 }
 
 /**
- * Reconstructs a nested object from a flattened object with dot-delimited keys.
+ * formats a standard python command string for execution
  */
-export function unflattenObject(
-  obj: Record<string, any>
-): Record<string, any> {
-  const result: Record<string, any> = {};
-
-  for (const [key, value] of Object.entries(obj)) {
-    const keys = key.split('.');
-    let current = result;
-
-    for (let i = 0; i < keys.length; i++) {
-      const k = keys[i];
-      if (i === keys.length - 1) {
-        current[k] = value;
-      } else {
-        if (!current[k] || typeof current[k] !== 'object') {
-          current[k] = {};
-        }
-        current = current[k];
-      }
-    }
-  }
-
-  return result;
+export function formatCommand(scriptPath: string, args: string[] = []): string {
+  const sanitizedArgs = args.map((arg) => `"${arg}"`);
+  return `python3 ${scriptPath} ${sanitizedArgs.join(' ')}`.trim();
 }
 
 /**
- * Groups an array of items by a key path or extraction function.
+ * normalizes whitespace from python process output streams
  */
-export function groupBy<T>(
-  items: T[],
-  keySelector: (item: T) => string | number
-): Record<string | number, T[]> {
-  return items.reduce((acc, item) => {
-    const key = keySelector(item);
-    if (!acc[key]) {
-      acc[key] = [];
-    }
-    acc[key].push(item);
-    return acc;
-  }, {} as Record<string | number, T[]>);
+export function cleanOutput(raw: string): string {
+  return raw.replace(/\r\n/g, '\n').trim();
+}
+
+/**
+ * checks if version string matches python-utils-73 criteria
+ */
+export function isSupportedVersion(version: string): version is PythonVersion {
+  const supported: PythonVersion[] = ['2.7', '3.8', '3.11', '3.12'];
+  return supported.includes(version as PythonVersion);
+}
+
+/**
+ * simple delay utility for async task orchestration
+ */
+export async function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
