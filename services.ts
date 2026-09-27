@@ -1,33 +1,38 @@
-import { createLogger, format, transports, Logger } from 'winston';
-import 'winston-daily-rotate-file';
-import path from 'path';
+import { performance } from 'perf_hooks';
 
 /**
- * Configuration for rotating log files.
- * Ensures logs are stored in the logs/ directory with daily rotation.
+ * Optimized processor for batch data operations
+ * Uses memoization to prevent redundant calculations
  */
-export const createApplicationLogger = (serviceName: string): Logger => {
-  return createLogger({
-    level: 'info',
-    format: format.combine(
-      format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
-      format.errors({ stack: true }),
-      format.json()
-    ),
-    defaultMeta: { service: serviceName },
-    transports: [
-      new transports.Console({
-        format: format.combine(format.colorize(), format.simple())
-      }),
-      new (transports as any).DailyRotateFile({
-        filename: path.join('logs', `${serviceName}-%DATE%.log`),
-        datePattern: 'YYYY-MM-DD',
-        zippedArchive: true,
-        maxSize: '20m',
-        maxFiles: '14d'
-      })
-    ]
-  });
-};
+export class DataProcessor {
+  private cache: Map<string, any> = new Map();
 
-export const logger = createApplicationLogger('python-utils-73');
+  public processBatch(items: string[]): any[] {
+    const startTime = performance.now();
+    const results = items.map((item) => {
+      if (this.cache.has(item)) {
+        return this.cache.get(item);
+      }
+
+      const processed = this.heavyComputation(item);
+      this.cache.set(item, processed);
+      return processed;
+    });
+
+    console.log(`Batch processed in ${(performance.now() - startTime).toFixed(2)}ms`);
+    return results;
+  }
+
+  private heavyComputation(input: string): string {
+    // Simulate CPU intensive task
+    let result = '';
+    for (let i = 0; i < 1000; i++) {
+      result += input.split('').reverse().join('');
+    }
+    return result;
+  }
+
+  public clearCache(): void {
+    this.cache.clear();
+  }
+}
