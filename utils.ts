@@ -1,37 +1,33 @@
-export type PythonVersion = '2.7' | '3.8' | '3.11' | '3.12';
-
-export interface ExecutionResult {
-  output: string;
-  exitCode: number;
-  durationMs: number;
-}
+import * as winston from 'winston';
+import 'winston-daily-rotate-file';
 
 /**
- * formats a standard python command string for execution
+ * Configures a rotating file logger for system operations.
+ * Rotates daily and retains logs for 14 days.
  */
-export function formatCommand(scriptPath: string, args: string[] = []): string {
-  const sanitizedArgs = args.map((arg) => `"${arg}"`);
-  return `python3 ${scriptPath} ${sanitizedArgs.join(' ')}`.trim();
-}
+export const setupLogger = (logDir: string = 'logs') => {
+  const transport = new winston.transports.DailyRotateFile({
+    dirname: logDir,
+    filename: 'app-%DATE%.log',
+    datePattern: 'YYYY-MM-DD',
+    zippedArchive: true,
+    maxSize: '20m',
+    maxFiles: '14d',
+    level: 'info'
+  });
 
-/**
- * normalizes whitespace from python process output streams
- */
-export function cleanOutput(raw: string): string {
-  return raw.replace(/\r\n/g, '\n').trim();
-}
+  const logger = winston.createLogger({
+    format: winston.format.combine(
+      winston.format.timestamp(),
+      winston.format.json()
+    ),
+    transports: [
+      transport,
+      new winston.transports.Console({
+        format: winston.format.simple()
+      })
+    ]
+  });
 
-/**
- * checks if version string matches python-utils-73 criteria
- */
-export function isSupportedVersion(version: string): version is PythonVersion {
-  const supported: PythonVersion[] = ['2.7', '3.8', '3.11', '3.12'];
-  return supported.includes(version as PythonVersion);
-}
-
-/**
- * simple delay utility for async task orchestration
- */
-export async function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
+  return logger;
+};
