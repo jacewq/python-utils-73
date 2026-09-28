@@ -1,43 +1,84 @@
-export interface ProcessingConfig {
-  maxRetries: number;
+export interface AppConfig {
+  env: 'development' | 'staging' | 'production';
+  port: number;
   timeoutMs: number;
-  inputPath: string;
+  maxRetries: number;
+  debug: boolean;
 }
 
-export const validateConfig = (config: unknown): config is ProcessingConfig => {
-  if (typeof config !== 'object' || config === null) return false;
+export class ConfigError extends Error {
+  constructor(message: string, public readonly code: string) {
+    super(`ConfigError [${code}]: ${message}`);
+    this.name = 'ConfigError';
+  }
+}
 
-  const c = config as Record<string, unknown>;
-
-  const isValid = 
-    typeof c.maxRetries === 'number' &&
-    c.maxRetries >= 0 &&
-    typeof c.timeoutMs === 'number' &&
-    c.timeoutMs > 0 &&
-    typeof c.inputPath === 'string' &&
-    c.inputPath.length > 0;
-
-  return isValid;
+const DEFAULT_CONFIG: AppConfig = {
+  env: 'development',
+  port: 8080,
+  timeoutMs: 5000,
+  maxRetries: 3,
+  debug: false,
 };
 
-export const processMainLoop = (data: unknown[], config: unknown): void => {
-  if (!validateConfig(config)) {
-    throw new Error('invalid configuration schema provided');
+export function parseConfig(rawInput: unknown): AppConfig {
+  if (rawInput === null || rawInput === undefined) {
+    return { ...DEFAULT_CONFIG };
   }
 
-  for (const entry of data) {
-    if (typeof entry !== 'object' || entry === null) {
-      console.warn('skipping invalid entry: not an object');
-      continue;
-    }
+  let parsed: Record<string, unknown>;
 
-    const record = entry as Record<string, any>;
-    if (!record.id || typeof record.id !== 'string') {
-      console.warn('skipping record: missing identifier');
-      continue;
+  if (typeof rawInput === 'string') {
+    const trimmed = rawInput.trim();
+    if (trimmed === '') {
+      return { ...DEFAULT_CONFIG };
     }
-
-    // Proceed with processing
-    console.log(`processing ${record.id} with timeout ${config.timeoutMs}`);
+    try {
+      parsed = JSON.parse(trimmed);
+    } catch (err) {
+      throw new ConfigError(
+        `Failed to parse JSON string: ${(err as Error).message}`,
+        'INVALID_JSON'
+      );
+    }
+  } else if (typeof rawInput === 'object' && !Array.isArray(rawInput)) {
+    parsed = rawInput as Record<string, unknown>;
+  } else {
+    throw new ConfigError(
+      `Unsupported configuration payload type: ${typeof rawInput}`,
+      'INVALID_TYPE'
+    );
   }
-};
+
+  const port = parsed.port ?? DEFAULT_CONFIG.port;
+  if (typeof port !== 'number' || !Number.isInteger(port) || port < 1 || port > 65535) {
+    throw new ConfigError(
+      `Port must be an integer between 1 and 65535, received: ${String(port)}`,
+      'INVALID_PORT'
+    );
+  }
+
+  const timeoutMs = parsed.timeoutMs ?? DEFAULT_CONFIG.timeoutMs;
+  if (typeof timeoutMs !== 'number' || Number.isNaN(timeoutMs) || timeoutMs < 0) {
+    throw new ConfigError(
+      `Timeout must be a non-negative number, received: ${String(timeoutMs)}`,
+      'INVALID_TIMEOUT'
+    );
+  }
+
+  const env = String(parsed.env ?? DEFAULT_CONFIG.env);
+  if (!['development', 'staging', 'production'].includes(env)) {
+    throw new ConfigError(
+      `Invalid environment '${env}'. Expected development, staging, or production`,
+      'INVALID_ENV'
+    );
+  }
+
+  return {
+    env: env as AppConfig['env'],
+    port,
+    timeoutMs,
+    maxRetries: typeof parsed.maxRetries === 'number' && parsed.maxRetries >= 0 ? parsed.maxRetries : DEFAULT_CONFIG.maxRetries,
+    debug: Boolean(parsed.debug ?? DEFAULT_CONFIG.debug),
+  };
+}
