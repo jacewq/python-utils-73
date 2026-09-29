@@ -1,40 +1,37 @@
-export class PythonUtilsError extends Error {
-  constructor(public message: string, public code?: string) {
-    super(message);
-    this.name = 'PythonUtilsError';
+export type PythonExecutionResult = {
+  stdout: string;
+  stderr: string;
+  exitCode: number;
+};
+
+export class PythonExecutionError extends Error {
+  constructor(public readonly result: PythonExecutionResult) {
+    super(`Python execution failed with code ${result.exitCode}`);
+    this.name = 'PythonExecutionError';
   }
 }
 
 /**
- * Safely parses input as a Python-compatible string slice index
+ * Validates script output for standard edge cases.
  */
-export function normalizeIndex(index: number, length: number): number {
-  if (typeof index !== 'number' || isNaN(index)) {
-    throw new PythonUtilsError('Index must be a numeric value', 'INVALID_INPUT');
+export function validateResult(result: PythonExecutionResult): void {
+  if (result.exitCode !== 0) {
+    throw new PythonExecutionError(result);
   }
 
-  // Handle negative indexing like Python
-  let normalized = index < 0 ? length + index : index;
-
-  if (normalized < 0 || normalized >= length) {
-    throw new PythonUtilsError(`Index ${index} out of bounds`, 'OUT_OF_BOUNDS');
+  if (result.stdout.trim() === '' && result.stderr.length > 0) {
+    throw new Error('Script produced no output and triggered errors');
   }
-
-  return normalized;
 }
 
 /**
- * Executes a computation with standard error boundary
+ * Safely parses JSON output from python scripts.
  */
-export function executeTask<T>(task: () => T): T | null {
+export function safeParseJson<T>(jsonString: string): T | null {
   try {
-    return task();
-  } catch (error) {
-    if (error instanceof PythonUtilsError) {
-      console.error(`[${error.code}] ${error.message}`);
-    } else {
-      console.error('An unexpected runtime error occurred');
-    }
+    return JSON.parse(jsonString) as T;
+  } catch (err) {
+    console.error('Failed to parse Python JSON output', err);
     return null;
   }
 }
