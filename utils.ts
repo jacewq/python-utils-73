@@ -1,41 +1,40 @@
-/**
- * Memoization cache for heavy computational operations
- * Prevents redundant execution in high-frequency calls
- */
-const memoCache = new Map<string, any>();
-
-export const memoize = <T, R>(fn: (arg: T) => R) => {
-  return (arg: T): R => {
-    const key = JSON.stringify(arg);
-    if (memoCache.has(key)) {
-      return memoCache.get(key);
-    }
-    const result = fn(arg);
-    memoCache.set(key, result);
-    return result;
-  };
-};
-
-/**
- * Batch processor for collection operations
- * Reduces overhead by iterating in controlled chunks
- */
-export function processInBatches<T, R>(
-  items: T[],
-  handler: (item: T) => R,
-  batchSize: number = 100
-): R[] {
-  const results: R[] = [];
-  for (let i = 0; i < items.length; i += batchSize) {
-    const chunk = items.slice(i, i + batchSize);
-    results.push(...chunk.map(handler));
+export class PythonUtilsError extends Error {
+  constructor(public message: string, public code?: string) {
+    super(message);
+    this.name = 'PythonUtilsError';
   }
-  return results;
 }
 
 /**
- * Performance-optimized object shallow clone
+ * Safely parses input as a Python-compatible string slice index
  */
-export const fastClone = <T extends object>(obj: T): T => {
-  return Object.assign({}, obj);
-};
+export function normalizeIndex(index: number, length: number): number {
+  if (typeof index !== 'number' || isNaN(index)) {
+    throw new PythonUtilsError('Index must be a numeric value', 'INVALID_INPUT');
+  }
+
+  // Handle negative indexing like Python
+  let normalized = index < 0 ? length + index : index;
+
+  if (normalized < 0 || normalized >= length) {
+    throw new PythonUtilsError(`Index ${index} out of bounds`, 'OUT_OF_BOUNDS');
+  }
+
+  return normalized;
+}
+
+/**
+ * Executes a computation with standard error boundary
+ */
+export function executeTask<T>(task: () => T): T | null {
+  try {
+    return task();
+  } catch (error) {
+    if (error instanceof PythonUtilsError) {
+      console.error(`[${error.code}] ${error.message}`);
+    } else {
+      console.error('An unexpected runtime error occurred');
+    }
+    return null;
+  }
+}
