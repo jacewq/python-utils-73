@@ -1,33 +1,41 @@
-import * as winston from 'winston';
-import 'winston-daily-rotate-file';
+/**
+ * Memoization cache for heavy computational operations
+ * Prevents redundant execution in high-frequency calls
+ */
+const memoCache = new Map<string, any>();
+
+export const memoize = <T, R>(fn: (arg: T) => R) => {
+  return (arg: T): R => {
+    const key = JSON.stringify(arg);
+    if (memoCache.has(key)) {
+      return memoCache.get(key);
+    }
+    const result = fn(arg);
+    memoCache.set(key, result);
+    return result;
+  };
+};
 
 /**
- * Configures a rotating file logger for system operations.
- * Rotates daily and retains logs for 14 days.
+ * Batch processor for collection operations
+ * Reduces overhead by iterating in controlled chunks
  */
-export const setupLogger = (logDir: string = 'logs') => {
-  const transport = new winston.transports.DailyRotateFile({
-    dirname: logDir,
-    filename: 'app-%DATE%.log',
-    datePattern: 'YYYY-MM-DD',
-    zippedArchive: true,
-    maxSize: '20m',
-    maxFiles: '14d',
-    level: 'info'
-  });
+export function processInBatches<T, R>(
+  items: T[],
+  handler: (item: T) => R,
+  batchSize: number = 100
+): R[] {
+  const results: R[] = [];
+  for (let i = 0; i < items.length; i += batchSize) {
+    const chunk = items.slice(i, i + batchSize);
+    results.push(...chunk.map(handler));
+  }
+  return results;
+}
 
-  const logger = winston.createLogger({
-    format: winston.format.combine(
-      winston.format.timestamp(),
-      winston.format.json()
-    ),
-    transports: [
-      transport,
-      new winston.transports.Console({
-        format: winston.format.simple()
-      })
-    ]
-  });
-
-  return logger;
+/**
+ * Performance-optimized object shallow clone
+ */
+export const fastClone = <T extends object>(obj: T): T => {
+  return Object.assign({}, obj);
 };
