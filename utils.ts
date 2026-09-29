@@ -1,37 +1,38 @@
-export type PythonExecutionResult = {
-  stdout: string;
-  stderr: string;
-  exitCode: number;
+/**
+ * Common utility functions for python-utils-73
+ */
+
+export const sleep = (ms: number): Promise<void> => 
+  new Promise((resolve) => setTimeout(resolve, ms));
+
+export const chunkArray = <T>(array: T[], size: number): T[][] => {
+  return Array.from({ length: Math.ceil(array.length / size) }, (_, i) =>
+    array.slice(i * size, i * size + size)
+  );
 };
 
-export class PythonExecutionError extends Error {
-  constructor(public readonly result: PythonExecutionResult) {
-    super(`Python execution failed with code ${result.exitCode}`);
-    this.name = 'PythonExecutionError';
-  }
-}
+export const isDefined = <T>(value: T | null | undefined): value is T => {
+  return value !== null && value !== undefined;
+};
 
-/**
- * Validates script output for standard edge cases.
- */
-export function validateResult(result: PythonExecutionResult): void {
-  if (result.exitCode !== 0) {
-    throw new PythonExecutionError(result);
-  }
-
-  if (result.stdout.trim() === '' && result.stderr.length > 0) {
-    throw new Error('Script produced no output and triggered errors');
-  }
-}
-
-/**
- * Safely parses JSON output from python scripts.
- */
-export function safeParseJson<T>(jsonString: string): T | null {
+export const retry = async <T>(
+  fn: () => Promise<T>,
+  retries: number = 3,
+  delay: number = 1000
+): Promise<T> => {
   try {
-    return JSON.parse(jsonString) as T;
-  } catch (err) {
-    console.error('Failed to parse Python JSON output', err);
-    return null;
+    return await fn();
+  } catch (error) {
+    if (retries <= 0) throw error;
+    await sleep(delay);
+    return retry(fn, retries - 1, delay);
   }
-}
+};
+
+export const pick = <T, K extends keyof T>(obj: T, keys: K[]): Pick<T, K> => {
+  const result = {} as Pick<T, K>;
+  keys.forEach((key) => {
+    if (key in obj) result[key] = obj[key];
+  });
+  return result;
+};
