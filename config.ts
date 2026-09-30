@@ -1,38 +1,43 @@
-/**
- * Configuration interface for python-utils-73 environment settings.
- */
 export interface AppConfig {
-  readonly environment: 'development' | 'production' | 'testing';
-  readonly timeoutMs: number;
-  readonly debugMode: boolean;
-  readonly retryAttempts: number;
+  maxRetries: number;
+  timeoutMs: number;
+}
+
+export const DEFAULT_CONFIG: AppConfig = {
+  maxRetries: 3,
+  timeoutMs: 5000,
+};
+
+/**
+ * Validates environment configuration objects
+ * @throws Error if configuration values are out of bounds
+ */
+export function validateConfig(config: Partial<AppConfig>): AppConfig {
+  if (config.maxRetries !== undefined && (config.maxRetries < 0 || config.maxRetries > 10)) {
+    throw new Error('maxRetries must be between 0 and 10');
+  }
+
+  if (config.timeoutMs !== undefined && config.timeoutMs < 100) {
+    throw new Error('timeoutMs must be at least 100ms');
+  }
+
+  return {
+    ...DEFAULT_CONFIG,
+    ...config,
+  };
 }
 
 /**
- * Default configuration instance with strict typing.
+ * Safely retrieves configuration values from environment variables
  */
-export const defaultConfig: AppConfig = {
-  environment: 'development',
-  timeoutMs: 5000,
-  debugMode: true,
-  retryAttempts: 3
-};
-
-/**
- * Validates the provided configuration object.
- * @param config - The configuration object to validate
- * @returns boolean indicating if the config is valid
- */
-export const isValidConfig = (config: AppConfig): boolean => {
-  return config.timeoutMs > 0 && config.retryAttempts >= 0;
-};
-
-/**
- * Merges partial updates into the current configuration.
- * @param current - The existing configuration
- * @param updates - Partial configuration updates
- * @returns A new merged configuration object
- */
-export const updateConfig = (current: AppConfig, updates: Partial<AppConfig>): AppConfig => {
-  return { ...current, ...updates };
-};
+export function loadConfig(env: Record<string, string | undefined>): AppConfig {
+  try {
+    return validateConfig({
+      maxRetries: env.MAX_RETRIES ? parseInt(env.MAX_RETRIES, 10) : undefined,
+      timeoutMs: env.TIMEOUT_MS ? parseInt(env.TIMEOUT_MS, 10) : undefined,
+    });
+  } catch (error) {
+    console.error('Configuration validation failed, falling back to defaults:', error);
+    return DEFAULT_CONFIG;
+  }
+}
