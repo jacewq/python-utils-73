@@ -1,43 +1,32 @@
-export class PythonExecutionError extends Error {
-  constructor(public message: string, public code?: number) {
-    super(message);
-    this.name = 'PythonExecutionError';
-  }
-}
+import winston from 'winston';
+import 'winston-daily-rotate-file';
 
 /**
- * safely executes python utility commands with error handling
+ * Configures a rotating file logger for system events
  */
-export async function runPythonUtility(command: string, args: string[]): Promise<string> {
-  try {
-    if (!command || command.trim() === '') {
-      throw new PythonExecutionError('command string is empty', 400);
-    }
+export const createLogger = (serviceName: string) => {
+  const transport = new winston.transports.DailyRotateFile({
+    filename: `logs/${serviceName}-%DATE%.log`,
+    datePattern: 'YYYY-MM-DD',
+    zippedArchive: true,
+    maxSize: '20m',
+    maxFiles: '14d'
+  });
 
-    const response = await fetch('/api/execute', {
-      method: 'POST',
-      body: JSON.stringify({ command, args }),
-      headers: { 'Content-Type': 'application/json' }
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new PythonExecutionError(errorData.message || 'unknown python error', response.status);
-    }
-
-    return await response.text();
-  } catch (error) {
-    if (error instanceof PythonExecutionError) {
-      throw error;
-    }
-    throw new PythonExecutionError(error instanceof Error ? error.message : 'network failure', 500);
-  }
-}
-
-/**
- * validates script parameters before execution
- */
-export const validateParams = (params: Record<string, unknown>): boolean => {
-  if (typeof params !== 'object' || params === null) return false;
-  return Object.values(params).every(val => val !== undefined && val !== null);
+  return winston.createLogger({
+    level: 'info',
+    format: winston.format.combine(
+      winston.format.timestamp(),
+      winston.format.json()
+    ),
+    defaultMeta: { service: serviceName },
+    transports: [
+      transport,
+      new winston.transports.Console({
+        format: winston.format.simple()
+      })
+    ]
+  });
 };
+
+export const logger = createLogger('python-utils-73');
