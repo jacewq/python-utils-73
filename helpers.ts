@@ -1,39 +1,32 @@
-export class PythonUtilsError extends Error {
-  constructor(public message: string, public code: string) {
-    super(message);
-    this.name = 'PythonUtilsError';
-  }
+export interface RetryOptions {
+  maxAttempts: number;
+  delayMs: number;
 }
 
 /**
- * Safely parses input for python-utils-73 execution
+ * Retries an asynchronous operation with a linear backoff strategy
  */
-export function validateInput(input: unknown): string {
-  if (input === null || input === undefined) {
-    throw new PythonUtilsError('Input cannot be null or undefined', 'ERR_EMPTY_INPUT');
-  }
+export async function withRetry<T>(
+  operation: () => Promise<T>,
+  options: RetryOptions = { maxAttempts: 3, delayMs: 1000 }
+): Promise<T> {
+  let lastError: unknown;
 
-  const stringified = typeof input === 'string' ? input : JSON.stringify(input);
-
-  if (stringified.trim().length === 0) {
-    throw new PythonUtilsError('Input string resulted in empty payload', 'ERR_BLANK_INPUT');
-  }
-
-  return stringified;
-}
-
-/**
- * Orchestrates safe execution of utility tasks
- */
-export async function runSafe<T>(task: () => Promise<T>): Promise<T | null> {
-  try {
-    return await task();
-  } catch (error) {
-    if (error instanceof PythonUtilsError) {
-      console.error(`[PythonUtils-73] Logic error (${error.code}): ${error.message}`);
-    } else {
-      console.error('[PythonUtils-73] Unexpected system error:', error);
+  for (let attempt = 1; attempt <= options.maxAttempts; attempt++) {
+    try {
+      return await operation();
+    } catch (err) {
+      lastError = err;
+      if (attempt < options.maxAttempts) {
+        await new Promise((resolve) => setTimeout(resolve, options.delayMs * attempt));
+      }
     }
-    return null;
   }
+
+  throw lastError instanceof Error 
+    ? lastError 
+    : new Error(`Operation failed after ${options.maxAttempts} attempts: ${lastError}`);
 }
+
+export const sleep = (ms: number): Promise<void> => 
+  new Promise((resolve) => setTimeout(resolve, ms));
