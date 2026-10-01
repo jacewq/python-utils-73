@@ -1,32 +1,36 @@
-export interface RetryOptions {
-  maxAttempts: number;
-  delayMs: number;
-}
-
 /**
- * Retries an asynchronous operation with a linear backoff strategy
+ * Utility for safe execution of python-related operations
  */
-export async function withRetry<T>(
-  operation: () => Promise<T>,
-  options: RetryOptions = { maxAttempts: 3, delayMs: 1000 }
-): Promise<T> {
-  let lastError: unknown;
 
-  for (let attempt = 1; attempt <= options.maxAttempts; attempt++) {
-    try {
-      return await operation();
-    } catch (err) {
-      lastError = err;
-      if (attempt < options.maxAttempts) {
-        await new Promise((resolve) => setTimeout(resolve, options.delayMs * attempt));
-      }
-    }
+export class PythonExecutionError extends Error {
+  constructor(public readonly code: number, message: string) {
+    super(message);
+    this.name = 'PythonExecutionError';
   }
-
-  throw lastError instanceof Error 
-    ? lastError 
-    : new Error(`Operation failed after ${options.maxAttempts} attempts: ${lastError}`);
 }
 
-export const sleep = (ms: number): Promise<void> => 
-  new Promise((resolve) => setTimeout(resolve, ms));
+export const safeExecute = <T>(fn: () => T, errorMessage: string): T => {
+  try {
+    return fn();
+  } catch (err) {
+    const details = err instanceof Error ? err.message : String(err);
+    throw new PythonExecutionError(500, `${errorMessage}: ${details}`);
+  }
+};
+
+export const validatePythonVersion = (version: string): void => {
+  if (!version || typeof version !== 'string') {
+    throw new Error('Invalid python version string provided');
+  }
+  const semverRegex = /^\d+\.\d+(\.\d+)?$/;
+  if (!semverRegex.test(version)) {
+    throw new TypeError(`Version ${version} does not match semver format`);
+  }
+};
+
+export const parseSafePath = (path: string | undefined | null): string => {
+  if (path === undefined || path === null || path.trim() === '') {
+    return '/usr/bin/python3';
+  }
+  return path.trim();
+};
