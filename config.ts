@@ -1,35 +1,32 @@
-import { readFileSync, existsSync } from 'fs';
-
-interface AppConfig {
+export interface AppConfig {
+  host: string;
   port: number;
   debug: boolean;
-  timeout: number;
 }
 
-const DEFAULT_CONFIG: AppConfig = {
+const defaults: AppConfig = {
+  host: '127.0.0.1',
   port: 8080,
   debug: false,
-  timeout: 3000
 };
 
 /**
- * Loads configuration from a JSON file with fallbacks to defaults
+ * Merges partial config with defaults
  */
-export function loadConfig(path: string): AppConfig {
-  try {
-    if (!existsSync(path)) {
-      return { ...DEFAULT_CONFIG };
-    }
+export function loadConfig(userConfig: Partial<AppConfig> = {}): AppConfig {
+  return {
+    ...defaults,
+    ...userConfig,
+  };
+}
 
-    const fileContent = readFileSync(path, 'utf-8');
-    const parsed = JSON.parse(fileContent);
-
-    return {
-      ...DEFAULT_CONFIG,
-      ...parsed
-    };
-  } catch (error) {
-    console.error(`Failed to load config at ${path}, using defaults`, error);
-    return { ...DEFAULT_CONFIG };
-  }
+/**
+ * Environment-based override loader
+ */
+export function loadConfigFromEnv(): AppConfig {
+  return loadConfig({
+    host: process.env.APP_HOST,
+    port: process.env.APP_PORT ? parseInt(process.env.APP_PORT, 10) : undefined,
+    debug: process.env.APP_DEBUG === 'true',
+  });
 }
