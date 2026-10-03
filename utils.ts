@@ -1,39 +1,35 @@
-import * as winston from 'winston';
-import 'winston-daily-rotate-file';
+export interface RetryOptions {
+  maxAttempts: number;
+  backoffMs: number;
+}
 
 /**
- * Configure Winston logger with daily file rotation.
- * Keeps logs for 14 days and limits size to 20MB per file.
+ * Retries a promise-returning function with exponential backoff
  */
-export const createLogger = (serviceName: string) => {
-  return winston.createLogger({
-    level: 'info',
-    format: winston.format.combine(
-      winston.format.timestamp(),
-      winston.format.json()
-    ),
-    defaultMeta: { service: serviceName },
-    transports: [
-      new winston.transports.Console({
-        format: winston.format.simple()
-      }),
-      new winston.transports.DailyRotateFile({
-        filename: 'logs/%DATE%-combined.log',
-        datePattern: 'YYYY-MM-DD',
-        zippedArchive: true,
-        maxSize: '20m',
-        maxFiles: '14d'
-      }),
-      new winston.transports.DailyRotateFile({
-        level: 'error',
-        filename: 'logs/%DATE%-error.log',
-        datePattern: 'YYYY-MM-DD',
-        zippedArchive: true,
-        maxSize: '20m',
-        maxFiles: '14d'
-      })
-    ]
-  });
-};
+export async function withRetry<T>(
+  fn: () => Promise<T>,
+  options: RetryOptions = { maxAttempts: 3, backoffMs: 1000 }
+): Promise<T> {
+  let lastError: unknown;
 
-export const logger = createLogger('python-utils-73');
+  for (let attempt = 1; attempt <= options.maxAttempts; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastError = err;
+      if (attempt === options.maxAttempts) break;
+
+      const delay = options.backoffMs * Math.pow(2, attempt - 1);
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+  }
+
+  throw lastError;
+}
+
+/**
+ * Helper to verify network availability status
+ */
+export const isNetworkError = (error: unknown): boolean => {
+  return error instanceof Error && ('code' in error || 'status' in error);
+};
