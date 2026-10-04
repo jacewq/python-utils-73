@@ -1,66 +1,54 @@
 /**
- * A fast, lightweight LRU cache implementation for memoizing expensive utility function calls.
- * Mimics the behavior of Python's functools.lru_cache.
+ * Generates an arithmetic progression of integers, mimicking Python's range().
+ * Handles edge cases like zero step, float inputs, and negative steps.
  */
-export class LRUCache<K, V> {
-  private cache = new Map<K, V>();
-  private maxLimit: number;
-
-  constructor(maxLimit = 128) {
-    this.maxLimit = maxLimit;
+export function range(start: number, stop?: number, step: number = 1): number[] {
+  if (stop === undefined) {
+    stop = start;
+    start = 0;
   }
 
-  /**
-   * Retrieves an item from the cache and updates its recency.
-   */
-  get(key: K): V | undefined {
-    const item = this.cache.get(key);
-    if (item !== undefined) {
-      // Refresh key position to denote recent activity
-      this.cache.delete(key);
-      this.cache.set(key, item);
+  if (step === 0) {
+    throw new RangeError("range() arg 3 must not be zero");
+  }
+
+  if (!Number.isInteger(start) || !Number.isInteger(stop) || !Number.isInteger(step)) {
+    throw new TypeError("range() arguments must be integers");
+  }
+
+  const result: number[] = [];
+
+  if (step > 0) {
+    for (let i = start; i < stop; i += step) {
+      result.push(i);
     }
-    return item;
-  }
-
-  /**
-   * Stores an item in the cache, evicting the least recently used if max limit is reached.
-   */
-  set(key: K, value: V): void {
-    if (this.cache.has(key)) {
-      this.cache.delete(key);
-    } else if (this.cache.size >= this.maxLimit) {
-      // Map iteration order matches insertion order; first key is the oldest
-      const oldestKey = this.cache.keys().next().value;
-      if (oldestKey !== undefined) {
-        this.cache.delete(oldestKey);
-      }
+  } else {
+    for (let i = start; i > stop; i += step) {
+      result.push(i);
     }
-    this.cache.set(key, value);
   }
 
-  clear(): void {
-    this.cache.clear();
-  }
+  return result;
 }
 
 /**
- * Memoizes a function using an LRU cache strategy to optimize performance of repetitive calls.
+ * Safely retrieves a nested property from an object using a dot-notation path,
+ * mimicking a robust nested getattr or dict.get with error resilience.
  */
-export function memoize<T extends (...args: any[]) => any>(
-  fn: T,
-  maxSize = 128
-): (...args: Parameters<T>) => ReturnType<T> {
-  const cache = new LRUCache<string, ReturnType<T>>(maxSize);
+export function getNestedValue(obj: unknown, path: string, defaultValue: unknown = undefined): unknown {
+  if (obj === null || obj === undefined || typeof path !== "string") {
+    return defaultValue;
+  }
 
-  return function (this: any, ...args: Parameters<T>): ReturnType<T> {
-    const key = JSON.stringify(args);
-    const cachedResult = cache.get(key);
-    if (cachedResult !== undefined) {
-      return cachedResult;
+  const parts = path.split(".");
+  let current: any = obj;
+
+  for (const part of parts) {
+    if (current === null || current === undefined || typeof current !== "object") {
+      return defaultValue;
     }
-    const result = fn.apply(this, args);
-    cache.set(key, result);
-    return result;
-  };
+    current = current[part];
+  }
+
+  return current === undefined ? defaultValue : current;
 }
