@@ -1,54 +1,55 @@
-/**
- * Generates an arithmetic progression of integers, mimicking Python's range().
- * Handles edge cases like zero step, float inputs, and negative steps.
- */
-export function range(start: number, stop?: number, step: number = 1): number[] {
-  if (stop === undefined) {
-    stop = start;
-    start = 0;
-  }
-
-  if (step === 0) {
-    throw new RangeError("range() arg 3 must not be zero");
-  }
-
-  if (!Number.isInteger(start) || !Number.isInteger(stop) || !Number.isInteger(step)) {
-    throw new TypeError("range() arguments must be integers");
-  }
-
-  const result: number[] = [];
-
-  if (step > 0) {
-    for (let i = start; i < stop; i += step) {
-      result.push(i);
-    }
-  } else {
-    for (let i = start; i > stop; i += step) {
-      result.push(i);
-    }
-  }
-
-  return result;
+export interface RetryOptions {
+  maxRetries: number;
+  initialDelayMs: number;
+  backoffFactor: number;
+  shouldRetry?: (error: unknown) => boolean;
 }
 
+const DEFAULT_OPTIONS: RetryOptions = {
+  maxRetries: 3,
+  initialDelayMs: 1000,
+  backoffFactor: 2,
+};
+
 /**
- * Safely retrieves a nested property from an object using a dot-notation path,
- * mimicking a robust nested getattr or dict.get with error resilience.
+ * Utility function to pause execution for a given number of milliseconds.
  */
-export function getNestedValue(obj: unknown, path: string, defaultValue: unknown = undefined): unknown {
-  if (obj === null || obj === undefined || typeof path !== "string") {
-    return defaultValue;
-  }
+const sleep = (ms: number): Promise<void> =>
+  new Promise((resolve) => setTimeout(resolve, ms));
 
-  const parts = path.split(".");
-  let current: any = obj;
+/**
+ * Retries an asynchronous operation with exponential backoff.
+ *
+ * @param operation - The async function to execute.
+ * @param options - Configuration options for retry behavior.
+ * @returns The resolved value of the operation.
+ */
+export async function retryOperation<T>(
+  operation: () => Promise<T>,
+  options: Partial<RetryOptions> = {}
+): Promise<T> {
+  const config: RetryOptions = { ...DEFAULT_OPTIONS, ...options };
+  let lastError: unknown;
+  let currentDelay = config.initialDelayMs;
 
-  for (const part of parts) {
-    if (current === null || current === undefined || typeof current !== "object") {
-      return defaultValue;
+  for (let attempt = 1; attempt <= config.maxRetries + 1; attempt++) {
+    try {
+      return await operation();
+    } catch (error) {
+      lastError = error;
+
+      if (attempt > config.maxRetries) {
+        break;
+      }
+
+      if (config.shouldRetry && !config.shouldRetry(error)) {
+        throw error;
+      }
+
+      await sleep(currentDelay);
+      currentDelay *= config.backoffFactor;
     }
-    current = current[part];
   }
 
-  return current === undefined ? defaultValue : current;
+  throw lastError;
 }
