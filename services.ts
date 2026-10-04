@@ -1,36 +1,41 @@
-export interface ProcessResult {
-  success: boolean;
-  data: string | null;
-  timestamp: number;
+export interface TaskResult<T> {
+  data: T | null;
+  error: Error | null;
 }
 
 /**
- * Orchestrates data processing tasks with standard formatting.
- * Returns a standardized result object for logging and storage.
+ * Safely executes a promise-based operation with error wrapping
  */
-export const processData = (input: string): ProcessResult => {
-  if (!input) {
-    return {
-      success: false,
-      data: null,
-      timestamp: Date.now(),
-    };
+export async function safeExecute<T>(fn: () => Promise<T>): Promise<TaskResult<T>> {
+  try {
+    const data = await fn();
+    return { data, error: null };
+  } catch (err) {
+    return { data: null, error: err instanceof Error ? err : new Error(String(err)) };
   }
-
-  return {
-    success: true,
-    data: input.trim().toLowerCase(),
-    timestamp: Date.now(),
-  };
-};
+}
 
 /**
- * Validates connection settings for the python-utils-73 module.
- * Checks if the provided timeout exceeds safe operation bounds.
+ * Delays execution for a specified duration
  */
-export const validateConfig = (timeout: number): boolean => {
-  const MAX_TIMEOUT = 5000;
-  const MIN_TIMEOUT = 100;
+export const sleep = (ms: number): Promise<void> => 
+  new Promise((resolve) => setTimeout(resolve, ms));
 
-  return timeout >= MIN_TIMEOUT && timeout <= MAX_TIMEOUT;
-};
+/**
+ * Basic object validation for nullish values
+ */
+export function isNotEmpty<T>(value: T | null | undefined): value is T {
+  return value !== null && value !== undefined;
+}
+
+/**
+ * Groups an array of objects by a specific key
+ */
+export function groupBy<T, K extends keyof any>(list: T[], key: (item: T) => K): Record<K, T[]> {
+  return list.reduce((acc, item) => {
+    const group = key(item);
+    if (!acc[group]) acc[group] = [];
+    acc[group].push(item);
+    return acc;
+  }, {} as Record<K, T[]>);
+}
