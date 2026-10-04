@@ -1,63 +1,44 @@
 /**
- * Utility helper functions providing Python-like sequence operations
- * and common array/number manipulation utilities.
+ * Highly optimized memoization utility inspired by Python's functools.lru_cache.
+ * Uses a Map for O(1) lookups and implements a basic LRU eviction policy
+ * to keep memory footprint bounded during large-scale operations.
  */
 
-/**
- * Generates an array of numbers over a specified range, similar to Python's range().
- */
-export function range(start: number, stop?: number, step: number = 1): number[] {
-  if (stop === undefined) {
-    stop = start;
-    start = 0;
-  }
+export interface CacheOptions<K, V> {
+  maxSize?: number;
+  resolver?: (...args: any[]) => K;
+}
 
-  if (step === 0) {
-    throw new Error('Step argument must not be zero');
-  }
+export function memoize<T extends (...args: any[]) => any>(
+  fn: T,
+  options: CacheOptions<any, ReturnType<T>> = {}
+): T {
+  const maxSize = options.maxSize ?? 1000;
+  const resolver = options.resolver;
+  const cache = new Map<any, ReturnType<T>>();
 
-  const result: number[] = [];
-  if (step > 0) {
-    for (let i = start; i < stop; i += step) {
-      result.push(i);
+  return function (this: any, ...args: Parameters<T>): ReturnType<T> {
+    const key = resolver ? resolver(...args) : args[0];
+
+    if (cache.has(key)) {
+      // Move accessed key to the end to maintain LRU order
+      const value = cache.get(key)!;
+      cache.delete(key);
+      cache.set(key, value);
+      return value;
     }
-  } else {
-    for (let i = start; i > stop; i += step) {
-      result.push(i);
+
+    const result = fn.apply(this, args);
+
+    // Evict oldest entry when capacity limit is reached
+    if (cache.size >= maxSize) {
+      const oldestKey = cache.keys().next().value;
+      if (oldestKey !== undefined) {
+        cache.delete(oldestKey);
+      }
     }
-  }
-  return result;
-}
 
-/**
- * Combines two arrays into an array of tuples up to the length of the shorter array.
- */
-export function zip<T, U>(first: T[], second: U[]): [T, U][] {
-  const minLength = Math.min(first.length, second.length);
-  const result: [T, U][] = [];
-  for (let i = 0; i < minLength; i++) {
-    result.push([first[i], second[i]]);
-  }
-  return result;
-}
-
-/**
- * Splits an array into smaller chunks of a specified maximum size.
- */
-export function chunk<T>(array: T[], size: number): T[][] {
-  if (size <= 0) {
-    throw new Error('Chunk size must be greater than zero');
-  }
-  const chunks: T[][] = [];
-  for (let i = 0; i < array.length; i += size) {
-    chunks.push(array.slice(i, i + size));
-  }
-  return chunks;
-}
-
-/**
- * Clamps a number within an inclusive min and max range.
- */
-export function clamp(value: number, min: number, max: number): number {
-  return Math.min(Math.max(value, min), max);
+    cache.set(key, result);
+    return result;
+  } as T;
 }
