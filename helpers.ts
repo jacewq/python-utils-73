@@ -1,44 +1,35 @@
 /**
- * Highly optimized memoization utility inspired by Python's functools.lru_cache.
- * Uses a Map for O(1) lookups and implements a basic LRU eviction policy
- * to keep memory footprint bounded during large-scale operations.
+ * Python-style utility helpers for TypeScript
  */
 
-export interface CacheOptions<K, V> {
-  maxSize?: number;
-  resolver?: (...args: any[]) => K;
-}
+export const range = (start: number, end?: number): number[] => {
+  const [s, e] = end === undefined ? [0, start] : [start, end];
+  return Array.from({ length: e - s }, (_, i) => s + i);
+};
 
-export function memoize<T extends (...args: any[]) => any>(
-  fn: T,
-  options: CacheOptions<any, ReturnType<T>> = {}
-): T {
-  const maxSize = options.maxSize ?? 1000;
-  const resolver = options.resolver;
-  const cache = new Map<any, ReturnType<T>>();
+export const chunk = <T>(arr: T[], size: number): T[][] => {
+  return Array.from({ length: Math.ceil(arr.length / size) }, (_, i) =>
+    arr.slice(i * size, i * size + size)
+  );
+};
 
-  return function (this: any, ...args: Parameters<T>): ReturnType<T> {
-    const key = resolver ? resolver(...args) : args[0];
+export const zip = <T, U>(a: T[], b: U[]): [T, U][] => {
+  const length = Math.min(a.length, b.length);
+  return Array.from({ length }, (_, i) => [a[i], b[i]]);
+};
 
-    if (cache.has(key)) {
-      // Move accessed key to the end to maintain LRU order
-      const value = cache.get(key)!;
-      cache.delete(key);
-      cache.set(key, value);
-      return value;
-    }
+export const getOrElse = <T>(value: T | null | undefined, defaultValue: T): T => {
+  return value ?? defaultValue;
+};
 
-    const result = fn.apply(this, args);
+export const flatten = <T>(arr: (T | T[])[]): T[] => {
+  return arr.reduce<T[]>((acc, val) => acc.concat(val), []);
+};
 
-    // Evict oldest entry when capacity limit is reached
-    if (cache.size >= maxSize) {
-      const oldestKey = cache.keys().next().value;
-      if (oldestKey !== undefined) {
-        cache.delete(oldestKey);
-      }
-    }
+export const distinct = <T>(arr: T[]): T[] => {
+  return Array.from(new Set(arr));
+};
 
-    cache.set(key, result);
-    return result;
-  } as T;
-}
+export const sleep = (ms: number): Promise<void> => {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+};
