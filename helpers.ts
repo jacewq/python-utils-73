@@ -1,35 +1,39 @@
 /**
- * Python-style utility helpers for TypeScript
+ * Retries a promise-returning function with exponential backoff.
  */
+export async function withRetry<T>(
+  fn: () => Promise<T>,
+  retries: number = 3,
+  delay: number = 1000
+): Promise<T> {
+  try {
+    return await fn();
+  } catch (error) {
+    if (retries <= 0) {
+      throw error;
+    }
 
-export const range = (start: number, end?: number): number[] => {
-  const [s, e] = end === undefined ? [0, start] : [start, end];
-  return Array.from({ length: e - s }, (_, i) => s + i);
-};
+    await new Promise((resolve) => setTimeout(resolve, delay));
 
-export const chunk = <T>(arr: T[], size: number): T[][] => {
-  return Array.from({ length: Math.ceil(arr.length / size) }, (_, i) =>
-    arr.slice(i * size, i * size + size)
-  );
-};
+    return withRetry(fn, retries - 1, delay * 2);
+  }
+}
 
-export const zip = <T, U>(a: T[], b: U[]): [T, U][] => {
-  const length = Math.min(a.length, b.length);
-  return Array.from({ length }, (_, i) => [a[i], b[i]]);
-};
+/**
+ * Helper to perform fetch requests with automatic retry logic.
+ */
+export async function fetchWithRetry(
+  url: string,
+  options: RequestInit = {},
+  retries: number = 3
+): Promise<Response> {
+  return withRetry(async () => {
+    const response = await fetch(url, options);
 
-export const getOrElse = <T>(value: T | null | undefined, defaultValue: T): T => {
-  return value ?? defaultValue;
-};
+    if (!response.ok && response.status >= 500) {
+      throw new Error(`Server error: ${response.status}`);
+    }
 
-export const flatten = <T>(arr: (T | T[])[]): T[] => {
-  return arr.reduce<T[]>((acc, val) => acc.concat(val), []);
-};
-
-export const distinct = <T>(arr: T[]): T[] => {
-  return Array.from(new Set(arr));
-};
-
-export const sleep = (ms: number): Promise<void> => {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-};
+    return response;
+  }, retries);
+}
