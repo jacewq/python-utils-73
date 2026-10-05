@@ -1,55 +1,40 @@
-export interface RetryOptions {
-  maxRetries: number;
-  initialDelayMs: number;
-  backoffFactor: number;
-  shouldRetry?: (error: unknown) => boolean;
-}
+/**
+ * Python-like utility functions for common operations
+ */
 
-const DEFAULT_OPTIONS: RetryOptions = {
-  maxRetries: 3,
-  initialDelayMs: 1000,
-  backoffFactor: 2,
+export const range = (start: number, end?: number, step = 1): number[] => {
+  const [s, e] = end === undefined ? [0, start] : [start, end];
+  const result: number[] = [];
+  for (let i = s; i < e; i += step) {
+    result.push(i);
+  }
+  return result;
 };
 
-/**
- * Utility function to pause execution for a given number of milliseconds.
- */
-const sleep = (ms: number): Promise<void> =>
+export const sleep = (ms: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, ms));
 
-/**
- * Retries an asynchronous operation with exponential backoff.
- *
- * @param operation - The async function to execute.
- * @param options - Configuration options for retry behavior.
- * @returns The resolved value of the operation.
- */
-export async function retryOperation<T>(
-  operation: () => Promise<T>,
-  options: Partial<RetryOptions> = {}
-): Promise<T> {
-  const config: RetryOptions = { ...DEFAULT_OPTIONS, ...options };
-  let lastError: unknown;
-  let currentDelay = config.initialDelayMs;
-
-  for (let attempt = 1; attempt <= config.maxRetries + 1; attempt++) {
-    try {
-      return await operation();
-    } catch (error) {
-      lastError = error;
-
-      if (attempt > config.maxRetries) {
-        break;
-      }
-
-      if (config.shouldRetry && !config.shouldRetry(error)) {
-        throw error;
-      }
-
-      await sleep(currentDelay);
-      currentDelay *= config.backoffFactor;
-    }
+export const chunk = <T>(array: T[], size: number): T[][] => {
+  const chunks: T[][] = [];
+  for (let i = 0; i < array.length; i += size) {
+    chunks.push(array.slice(i, i + size));
   }
+  return chunks;
+};
 
-  throw lastError;
-}
+export const groupBy = <T, K extends string | number | symbol>(
+  array: T[],
+  keySelector: (item: T) => K
+): Record<K, T[]> => {
+  return array.reduce((acc, item) => {
+    const key = keySelector(item);
+    if (!acc[key]) {
+      acc[key] = [];
+    }
+    acc[key].push(item);
+    return acc;
+  }, {} as Record<K, T[]>);
+};
+
+export const clamp = (val: number, min: number, max: number): number =>
+  Math.min(Math.max(val, min), max);
