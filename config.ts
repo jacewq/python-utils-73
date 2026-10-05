@@ -1,32 +1,52 @@
 export interface AppConfig {
-  host: string;
+  env: 'development' | 'staging' | 'production';
   port: number;
   debug: boolean;
+  timeoutMs: number;
+  maxRetries: number;
+  logLevel: 'debug' | 'info' | 'warn' | 'error';
 }
 
-const defaults: AppConfig = {
-  host: '127.0.0.1',
+export const DEFAULT_CONFIG: AppConfig = {
+  env: 'development',
   port: 8080,
   debug: false,
+  timeoutMs: 5000,
+  maxRetries: 3,
+  logLevel: 'info',
 };
 
 /**
- * Merges partial config with defaults
+ * Loads application configuration by combining default values,
+ * environment variable overrides, and explicit user settings.
  */
-export function loadConfig(userConfig: Partial<AppConfig> = {}): AppConfig {
-  return {
-    ...defaults,
-    ...userConfig,
-  };
-}
+export function loadConfig(overrides: Partial<AppConfig> = {}): AppConfig {
+  const envOverrides: Partial<AppConfig> = {};
 
-/**
- * Environment-based override loader
- */
-export function loadConfigFromEnv(): AppConfig {
-  return loadConfig({
-    host: process.env.APP_HOST,
-    port: process.env.APP_PORT ? parseInt(process.env.APP_PORT, 10) : undefined,
-    debug: process.env.APP_DEBUG === 'true',
-  });
+  if (typeof process !== 'undefined' && process.env) {
+    if (process.env.NODE_ENV) {
+      const env = process.env.NODE_ENV.toLowerCase();
+      if (env === 'production' || env === 'staging' || env === 'development') {
+        envOverrides.env = env;
+      }
+    }
+    if (process.env.PORT) {
+      const parsedPort = parseInt(process.env.PORT, 10);
+      if (!isNaN(parsedPort)) {
+        envOverrides.port = parsedPort;
+      }
+    }
+    if (process.env.LOG_LEVEL) {
+      const level = process.env.LOG_LEVEL.toLowerCase();
+      if (['debug', 'info', 'warn', 'error'].includes(level)) {
+        envOverrides.logLevel = level as AppConfig['logLevel'];
+      }
+    }
+  }
+
+  return {
+    ...DEFAULT_CONFIG,
+    ...envOverrides,
+    ...overrides,
+  };
 }
