@@ -1,45 +1,37 @@
-export interface ProcessingConfig {
-  maxRetries: number;
-  timeoutMs: number;
-  inputSchema: Record<string, string>;
+export type DataMap = Record<string, unknown>;
+
+export interface ValidationResult {
+  isValid: boolean;
+  errors: string[];
 }
 
-export interface ProcessedResult {
-  status: 'success' | 'error';
-  payload?: unknown;
-  error?: string;
+/**
+ * Validates if an object is not null and has keys
+ */
+export function isNotEmpty(data: DataMap | null | undefined): boolean {
+  return data !== null && data !== undefined && Object.keys(data).length > 0;
 }
 
-export class ValidationError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'ValidationError';
-  }
+/**
+ * Safely extracts a nested property from a data object
+ */
+export function getNestedValue<T>(obj: DataMap, path: string): T | undefined {
+  return path.split('.').reduce((acc: any, key) => (acc && acc[key] !== undefined ? acc[key] : undefined), obj) as T;
 }
 
-export function validateInput(data: unknown, schema: Record<string, string>): void {
-  if (!data || typeof data !== 'object') {
-    throw new ValidationError('Input must be a non-null object');
-  }
-
-  for (const [key, type] of Object.entries(schema)) {
-    const value = (data as Record<string, unknown>)[key];
-    if (typeof value !== type) {
-      throw new ValidationError(`Property ${key} must be of type ${type}`);
-    }
-  }
+/**
+ * Normalizes keys to lowercase for consistent data access
+ */
+export function normalizeKeys(obj: DataMap): DataMap {
+  return Object.keys(obj).reduce((acc, key) => {
+    acc[key.toLowerCase()] = obj[key];
+    return acc;
+  }, {} as DataMap);
 }
 
-export function runProcessingLoop(items: unknown[], schema: Record<string, string>): ProcessedResult[] {
-  return items.map((item) => {
-    try {
-      validateInput(item, schema);
-      return { status: 'success', payload: item };
-    } catch (err) {
-      return {
-        status: 'error',
-        error: err instanceof ValidationError ? err.message : 'Unknown processing error'
-      };
-    }
-  });
+/**
+ * Merges multiple data objects into a single source
+ */
+export function mergeData(sources: DataMap[]): DataMap {
+  return Object.assign({}, ...sources);
 }
