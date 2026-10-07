@@ -1,52 +1,65 @@
 export interface AppConfig {
-  env: 'development' | 'staging' | 'production';
+  env: 'development' | 'production' | 'test';
   port: number;
+  host: string;
   debug: boolean;
   timeoutMs: number;
-  maxRetries: number;
-  logLevel: 'debug' | 'info' | 'warn' | 'error';
 }
 
-export const DEFAULT_CONFIG: AppConfig = {
+const DEFAULT_CONFIG: AppConfig = {
   env: 'development',
   port: 8080,
+  host: '127.0.0.1',
   debug: false,
-  timeoutMs: 5000,
-  maxRetries: 3,
-  logLevel: 'info',
+  timeoutMs: 30000,
 };
 
 /**
- * Loads application configuration by combining default values,
- * environment variable overrides, and explicit user settings.
+ * Loader and manager for application configuration with environment fallback.
  */
-export function loadConfig(overrides: Partial<AppConfig> = {}): AppConfig {
-  const envOverrides: Partial<AppConfig> = {};
+export class ConfigLoader {
+  private config: AppConfig;
 
-  if (typeof process !== 'undefined' && process.env) {
-    if (process.env.NODE_ENV) {
-      const env = process.env.NODE_ENV.toLowerCase();
-      if (env === 'production' || env === 'staging' || env === 'development') {
-        envOverrides.env = env;
-      }
-    }
-    if (process.env.PORT) {
-      const parsedPort = parseInt(process.env.PORT, 10);
-      if (!isNaN(parsedPort)) {
-        envOverrides.port = parsedPort;
-      }
-    }
-    if (process.env.LOG_LEVEL) {
-      const level = process.env.LOG_LEVEL.toLowerCase();
-      if (['debug', 'info', 'warn', 'error'].includes(level)) {
-        envOverrides.logLevel = level as AppConfig['logLevel'];
-      }
-    }
+  constructor(overrides: Partial<AppConfig> = {}) {
+    this.config = this.loadConfig(overrides);
   }
 
-  return {
-    ...DEFAULT_CONFIG,
-    ...envOverrides,
-    ...overrides,
-  };
+  /**
+   * Merges defaults, environment variables, and manual overrides.
+   */
+  private loadConfig(overrides: Partial<AppConfig>): AppConfig {
+    const env = (typeof process !== 'undefined' && process.env) || {};
+
+    const envOverrides: Partial<AppConfig> = {
+      env: (env.NODE_ENV as AppConfig['env']) || undefined,
+      port: env.PORT ? parseInt(env.PORT, 10) : undefined,
+      host: env.HOST || undefined,
+      debug: env.DEBUG ? env.DEBUG === 'true' : undefined,
+    };
+
+    // Clean undefined values to prevent overriding defaults with undefined
+    const filteredEnv = Object.fromEntries(
+      Object.entries(envOverrides).filter(([_, value]) => value !== undefined)
+    );
+
+    return {
+      ...DEFAULT_CONFIG,
+      ...filteredEnv,
+      ...overrides,
+    };
+  }
+
+  /**
+   * Retrieves a specific configuration option.
+   */
+  public get<K extends keyof AppConfig>(key: K): AppConfig[K] {
+    return this.config[key];
+  }
+
+  /**
+   * Retrieves the full configuration object.
+   */
+  public getAll(): AppConfig {
+    return { ...this.config };
+  }
 }
