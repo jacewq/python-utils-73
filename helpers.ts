@@ -1,39 +1,45 @@
-export class PythonUtilsError extends Error {
-  constructor(public message: string, public code: string) {
-    super(message);
-    this.name = 'PythonUtilsError';
-  }
+/**
+ * Optimized data processing helpers for python-utils-73
+ */
+
+export interface CacheEntry<T> {
+  value: T;
+  expiry: number;
 }
 
-/**
- * Safely parses input for python-utils-73 operations
- */
-export function safeParseInput(input: unknown): string {
-  if (input === null || input === undefined) {
-    throw new PythonUtilsError('input cannot be null or undefined', 'ERR_INVALID_INPUT');
-  }
-
-  const serialized = typeof input === 'string' ? input : JSON.stringify(input);
-
-  if (serialized.trim().length === 0) {
-    throw new PythonUtilsError('input cannot be empty or whitespace', 'ERR_EMPTY_INPUT');
-  }
-
-  return serialized;
-}
+const cache = new Map<string, CacheEntry<any>>();
 
 /**
- * Executes a function with structural error handling
+ * Memoizes function execution with time-to-live support
  */
-export async function runWithRecovery<T>(fn: () => Promise<T>): Promise<T | null> {
-  try {
-    return await fn();
-  } catch (error) {
-    if (error instanceof PythonUtilsError) {
-      console.error(`[PythonUtils-73] Logic error (${error.code}): ${error.message}`);
-      return null;
+export function memoize<T>(fn: (...args: any[]) => T, ttl: number = 300000) {
+  return (...args: any[]): T => {
+    const key = JSON.stringify(args);
+    const now = Date.now();
+
+    if (cache.has(key)) {
+      const entry = cache.get(key)!;
+      if (now < entry.expiry) {
+        return entry.value as T;
+      }
+      cache.delete(key);
     }
-    console.error('[PythonUtils-73] Unexpected runtime failure', error);
-    throw error;
+
+    const result = fn(...args);
+    cache.set(key, { value: result, expiry: now + ttl });
+    return result;
+  };
+}
+
+/**
+ * Batched processor to reduce event loop overhead
+ */
+export async function batchProcess<T, R>(items: T[], processor: (batch: T[]) => Promise<R[]>, size: number = 100): Promise<R[]> {
+  const results: R[] = [];
+  for (let i = 0; i < items.length; i += size) {
+    const batch = items.slice(i, i + size);
+    const processed = await processor(batch);
+    results.push(...processed);
   }
+  return results;
 }
