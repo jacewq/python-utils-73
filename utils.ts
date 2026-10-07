@@ -1,30 +1,42 @@
-export interface RetryOptions {
-  maxAttempts: number;
-  delayMs: number;
-}
-
 /**
- * Executes a function with exponential backoff retry logic.
+ * Deeply sanitizes and cleans nested data structures
+ * by removing null/undefined values.
  */
-export async function withRetry<T>(
-  operation: () => Promise<T>,
-  options: RetryOptions = { maxAttempts: 3, delayMs: 1000 }
-): Promise<T> {
-  let lastError: unknown;
+export function sanitizeData<T>(data: T): T {
+  if (data === null || typeof data !== 'object') {
+    return data;
+  }
 
-  for (let attempt = 1; attempt <= options.maxAttempts; attempt++) {
-    try {
-      return await operation();
-    } catch (err) {
-      lastError = err;
-      if (attempt === options.maxAttempts) break;
-      
-      const backoff = options.delayMs * Math.pow(2, attempt - 1);
-      await new Promise((resolve) => setTimeout(resolve, backoff));
+  if (Array.isArray(data)) {
+    return data
+      .filter((item) => item !== null && item !== undefined)
+      .map((item) => sanitizeData(item)) as unknown as T;
+  }
+
+  const result: Record<string, any> = {};
+  for (const [key, value] of Object.entries(data)) {
+    if (value !== null && value !== undefined) {
+      result[key] = sanitizeData(value);
     }
   }
 
-  throw lastError instanceof Error 
-    ? lastError 
-    : new Error(`Operation failed after ${options.maxAttempts} attempts: ${lastError}`);
+  return result as T;
+}
+
+/**
+ * Safely parses JSON with fallback value
+ */
+export function safeJsonParse<T>(json: string, fallback: T): T {
+  try {
+    return JSON.parse(json);
+  } catch (err) {
+    return fallback;
+  }
+}
+
+/**
+ * Type guard to check if a value is a plain object
+ */
+export function isPlainObject(item: unknown): item is Record<string, unknown> {
+  return typeof item === 'object' && item !== null && !Array.isArray(item);
 }
