@@ -1,13 +1,13 @@
 # python-utils-73
 
-A collection of lightweight, high-performance TypeScript utilities designed to simplify common data manipulation and string formatting tasks. This library focuses on providing type-safe solutions for everyday development challenges in Node.js and browser environments.
+A robust collection of TypeScript utility functions designed to bridge the gap between common Python idioms and modern JavaScript development. This library streamlines data manipulation and object handling with type-safe, production-ready helpers.
 
 ## Features
 
-*   **Advanced Type Guards**: Comprehensive runtime validation for complex objects and nested data structures.
-*   **Performance-Optimized Parsers**: Efficient utilities for transforming JSON-like strings and URL query parameters without overhead.
-*   **Zero-Dependency Core**: Built entirely with native TypeScript, ensuring a minimal footprint and no vulnerability risks from third-party packages.
-*   **Formatting Engine**: Robust set of helpers for standardizing date strings, currency values, and slugification.
+*   **Type-Safe Object Traversal:** Safely access deeply nested object properties using string paths, preventing `undefined` reference errors.
+*   **Enhanced Array Utilities:** Built-in Python-inspired methods such as `chunk`, `flatten`, and `range` for more expressive data processing.
+*   **Time-Delta Formatting:** Simplified date manipulation tools to calculate relative time differences and format human-readable durations.
+*   **Deep Equality Comparison:** Reliable utility for comparing complex nested objects and arrays without external dependencies.
 
 ## Installation
 
@@ -21,28 +21,23 @@ yarn add python-utils-73
 
 ## Basic Usage
 
-Import the required modules to clean data or format outputs directly in your project:
+Import the utilities directly into your TypeScript files to leverage strict type inference:
 
 ```typescript
-import { slugify, isObject } from 'python-utils-73';
+import { range, getByPath } from 'python-utils-73';
 
-// Standardize strings
-const title = "Hello World: Python Utilities!";
-console.log(slugify(title)); // "hello-world-python-utilities"
+// Generate a sequence of numbers
+const sequence = range(0, 10, 2); // [0, 2, 4, 6, 8]
 
-// Type safe validation
-const data = { id: 1 };
-if (isObject(data)) {
-  console.log("Valid object detected");
-}
+// Access deep properties safely
+const user = { profile: { settings: { theme: 'dark' } } };
+const theme = getByPath(user, 'profile.settings.theme'); 
+
+console.log(theme); // 'dark'
 ```
-
-## Contributing
-
-We welcome contributions! Please open an issue to discuss proposed changes or submit a pull request with unit tests for any new utility functions.
 
 ## License
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+Distributed under the MIT License. See `LICENSE` for more information.
