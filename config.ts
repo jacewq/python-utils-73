@@ -1,30 +1,33 @@
-import * as winston from 'winston';
-import 'winston-daily-rotate-file';
-import * as path from 'path';
+export interface ProcessConfig {
+  inputPath: string;
+  maxRetries: number;
+  timeoutMs: number;
+}
 
-/**
- * Logger configuration for python-utils-73
- * Uses daily rotation to manage disk space
- */
-export const logger = winston.createLogger({
-  level: process.env.LOG_LEVEL || 'info',
-  format: winston.format.combine(
-    winston.format.timestamp(),
-    winston.format.json()
-  ),
-  transports: [
-    new winston.transports.Console(),
-    new winston.transports.DailyRotateFile({
-      filename: path.join('logs', 'application-%DATE%.log'),
-      datePattern: 'YYYY-MM-DD',
-      zippedArchive: true,
-      maxSize: '20m',
-      maxFiles: '14d'
-    })
-  ]
-});
+export const validateConfig = (config: unknown): config is ProcessConfig => {
+  if (typeof config !== 'object' || config === null) return false;
+  
+  const c = config as Record<string, unknown>;
+  
+  const hasValidPath = typeof c.inputPath === 'string' && c.inputPath.length > 0;
+  const hasValidRetries = typeof c.maxRetries === 'number' && c.maxRetries >= 0;
+  const hasValidTimeout = typeof c.timeoutMs === 'number' && c.timeoutMs > 0;
 
-export const logConfig = {
-  defaultMeta: { service: 'python-utils-73' },
-  exitOnError: false
+  return hasValidPath && hasValidRetries && hasValidTimeout;
+};
+
+export const processMainLoop = (data: unknown[]): void => {
+  for (const item of data) {
+    if (!validateConfig(item)) {
+      console.error('Invalid configuration schema detected, skipping entry');
+      continue;
+    }
+
+    try {
+      console.log(`Processing path: ${item.inputPath}`);
+      // Processing logic follows here
+    } catch (error) {
+      console.error('Runtime error during processing', error);
+    }
+  }
 };
