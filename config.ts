@@ -1,35 +1,30 @@
-import * as fs from 'fs';
-
-export interface AppConfig {
-  port: number;
-  debug: boolean;
-  timeout: number;
-}
-
-const DEFAULT_CONFIG: AppConfig = {
-  port: 3000,
-  debug: false,
-  timeout: 5000,
-};
+import * as winston from 'winston';
+import 'winston-daily-rotate-file';
+import * as path from 'path';
 
 /**
- * loads json configuration with fallback defaults
+ * Logger configuration for python-utils-73
+ * Uses daily rotation to manage disk space
  */
-export function loadConfig(path: string): AppConfig {
-  try {
-    if (!fs.existsSync(path)) {
-      return { ...DEFAULT_CONFIG };
-    }
+export const logger = winston.createLogger({
+  level: process.env.LOG_LEVEL || 'info',
+  format: winston.format.combine(
+    winston.format.timestamp(),
+    winston.format.json()
+  ),
+  transports: [
+    new winston.transports.Console(),
+    new winston.transports.DailyRotateFile({
+      filename: path.join('logs', 'application-%DATE%.log'),
+      datePattern: 'YYYY-MM-DD',
+      zippedArchive: true,
+      maxSize: '20m',
+      maxFiles: '14d'
+    })
+  ]
+});
 
-    const fileContent = fs.readFileSync(path, 'utf-8');
-    const userConfig = JSON.parse(fileContent);
-
-    return {
-      ...DEFAULT_CONFIG,
-      ...userConfig,
-    };
-  } catch (error) {
-    console.error('failed to load config, using defaults:', error);
-    return { ...DEFAULT_CONFIG };
-  }
-}
+export const logConfig = {
+  defaultMeta: { service: 'python-utils-73' },
+  exitOnError: false
+};
