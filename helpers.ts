@@ -1,45 +1,38 @@
 /**
- * Optimized data processing helpers for python-utils-73
+ * Utility functions for common string and collection operations
  */
 
-export interface CacheEntry<T> {
-  value: T;
-  expiry: number;
-}
+export const capitalize = (str: string): string => {
+  if (!str) return str;
+  return str.charAt(0).toUpperCase() + str.slice(1);
+};
 
-const cache = new Map<string, CacheEntry<any>>();
+export const chunkArray = <T>(array: T[], size: number): T[][] => {
+  return Array.from({ length: Math.ceil(array.length / size) }, (_, i) =>
+    array.slice(i * size, i * size + size)
+  );
+};
 
-/**
- * Memoizes function execution with time-to-live support
- */
-export function memoize<T>(fn: (...args: any[]) => T, ttl: number = 300000) {
-  return (...args: any[]): T => {
-    const key = JSON.stringify(args);
-    const now = Date.now();
+export const delay = (ms: number): Promise<void> => {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+};
 
-    if (cache.has(key)) {
-      const entry = cache.get(key)!;
-      if (now < entry.expiry) {
-        return entry.value as T;
-      }
-      cache.delete(key);
+export const slugify = (text: string): string => {
+  return text
+    .toString()
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, '-')
+    .replace(/[^\w\-]+/g, '')
+    .replace(/\-\-+/g, '-');
+};
+
+export const pick = <T, K extends keyof T>(obj: T, keys: K[]): Pick<T, K> => {
+  const result = {} as Pick<T, K>;
+  keys.forEach((key) => {
+    if (key in obj) {
+      result[key] = obj[key];
     }
-
-    const result = fn(...args);
-    cache.set(key, { value: result, expiry: now + ttl });
-    return result;
-  };
-}
-
-/**
- * Batched processor to reduce event loop overhead
- */
-export async function batchProcess<T, R>(items: T[], processor: (batch: T[]) => Promise<R[]>, size: number = 100): Promise<R[]> {
-  const results: R[] = [];
-  for (let i = 0; i < items.length; i += size) {
-    const batch = items.slice(i, i + size);
-    const processed = await processor(batch);
-    results.push(...processed);
-  }
-  return results;
-}
+  });
+  return result;
+};
