@@ -1,28 +1,32 @@
-import { createLogger, format, transports, Logger } from 'winston';
+import * as winston from 'winston';
 import 'winston-daily-rotate-file';
 
 /**
- * Configuration for application logging using rotation
+ * Configures winston logger with daily file rotation.
+ * Keeps logs for 14 days and max size of 20MB per file.
  */
-export const getLogger = (serviceName: string): Logger => {
-  return createLogger({
+export const createLogger = (serviceName: string) => {
+  const transport = new winston.transports.DailyRotateFile({
+    filename: `logs/${serviceName}-%DATE%.log`,
+    datePattern: 'YYYY-MM-DD',
+    zippedArchive: true,
+    maxSize: '20m',
+    maxFiles: '14d',
+  });
+
+  return winston.createLogger({
     level: 'info',
-    format: format.combine(
-      format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
-      format.json()
+    format: winston.format.combine(
+      winston.format.timestamp(),
+      winston.format.json()
     ),
-    defaultMeta: { service: serviceName },
     transports: [
-      new transports.Console(),
-      new transports.DailyRotateFile({
-        filename: 'logs/%DATE%-application.log',
-        datePattern: 'YYYY-MM-DD',
-        zippedArchive: true,
-        maxSize: '20m',
-        maxFiles: '14d'
-      })
-    ]
+      transport,
+      new winston.transports.Console({
+        format: winston.format.simple(),
+      }),
+    ],
   });
 };
 
-export const logger = getLogger('python-utils-73');
+export const logger = createLogger('python-utils-73');
