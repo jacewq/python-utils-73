@@ -1,42 +1,38 @@
-/**
- * Deeply sanitizes and cleans nested data structures
- * by removing null/undefined values.
- */
-export function sanitizeData<T>(data: T): T {
-  if (data === null || typeof data !== 'object') {
-    return data;
+import * as fs from 'fs';
+import * as path from 'path';
+
+interface LoggerOptions {
+  logDir: string;
+  maxSizeMB: number;
+  maxFiles: number;
+}
+
+export const setupLogger = (options: LoggerOptions) => {
+  const logPath = path.join(options.logDir, 'app.log');
+
+  if (!fs.existsSync(options.logDir)) {
+    fs.mkdirSync(options.logDir, { recursive: true });
   }
 
-  if (Array.isArray(data)) {
-    return data
-      .filter((item) => item !== null && item !== undefined)
-      .map((item) => sanitizeData(item)) as unknown as T;
-  }
-
-  const result: Record<string, any> = {};
-  for (const [key, value] of Object.entries(data)) {
-    if (value !== null && value !== undefined) {
-      result[key] = sanitizeData(value);
+  const rotateLogs = () => {
+    if (fs.existsSync(logPath)) {
+      const stats = fs.statSync(logPath);
+      if (stats.size > options.maxSizeMB * 1024 * 1024) {
+        for (let i = options.maxFiles - 1; i > 0; i--) {
+          const oldFile = `${logPath}.${i}`;
+          const nextFile = `${logPath}.${i + 1}`;
+          if (fs.existsSync(oldFile)) fs.renameSync(oldFile, nextFile);
+        }
+        fs.renameSync(logPath, `${logPath}.1`);
+      }
     }
-  }
+  };
 
-  return result as T;
-}
-
-/**
- * Safely parses JSON with fallback value
- */
-export function safeJsonParse<T>(json: string, fallback: T): T {
-  try {
-    return JSON.parse(json);
-  } catch (err) {
-    return fallback;
-  }
-}
-
-/**
- * Type guard to check if a value is a plain object
- */
-export function isPlainObject(item: unknown): item is Record<string, unknown> {
-  return typeof item === 'object' && item !== null && !Array.isArray(item);
-}
+  return {
+    log: (message: string) => {
+      rotateLogs();
+      const entry = `[${new Date().toISOString()}] ${message}\n`;
+      fs.appendFileSync(logPath, entry);
+    }
+  };
+};
