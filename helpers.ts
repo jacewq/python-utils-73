@@ -1,38 +1,44 @@
 /**
- * Utility functions for common string and collection operations
+ * Safely parses input for python-utils-73 operations.
  */
+export function safeParseJson<T>(input: unknown, defaultValue: T): T {
+  if (typeof input !== 'string') {
+    return defaultValue;
+  }
 
-export const capitalize = (str: string): string => {
-  if (!str) return str;
-  return str.charAt(0).toUpperCase() + str.slice(1);
-};
+  try {
+    return JSON.parse(input) as T;
+  } catch (err) {
+    console.error('Failed to parse input string:', err);
+    return defaultValue;
+  }
+}
 
-export const chunkArray = <T>(array: T[], size: number): T[][] => {
-  return Array.from({ length: Math.ceil(array.length / size) }, (_, i) =>
-    array.slice(i * size, i * size + size)
+/**
+ * Handles potential null or undefined identifiers gracefully.
+ */
+export function validateId(id: string | null | undefined): string {
+  if (!id || id.trim().length === 0) {
+    throw new Error('Identifier cannot be empty or null');
+  }
+  return id.trim();
+}
+
+/**
+ * Wrapper for operations requiring strict output validation.
+ */
+export async function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  const timeout = new Promise<never>((_, reject) => 
+    setTimeout(() => reject(new Error('Operation timed out')), ms)
   );
-};
+  
+  return Promise.race([promise, timeout]);
+}
 
-export const delay = (ms: number): Promise<void> => {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-};
-
-export const slugify = (text: string): string => {
-  return text
-    .toString()
-    .toLowerCase()
-    .trim()
-    .replace(/\s+/g, '-')
-    .replace(/[^\w\-]+/g, '')
-    .replace(/\-\-+/g, '-');
-};
-
-export const pick = <T, K extends keyof T>(obj: T, keys: K[]): Pick<T, K> => {
-  const result = {} as Pick<T, K>;
-  keys.forEach((key) => {
-    if (key in obj) {
-      result[key] = obj[key];
-    }
-  });
-  return result;
-};
+/**
+ * Ensures array input for bulk python operations.
+ */
+export function ensureArray<T>(data: T | T[] | undefined | null): T[] {
+  if (!data) return [];
+  return Array.isArray(data) ? data : [data];
+}
