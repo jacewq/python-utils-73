@@ -1,34 +1,29 @@
 export interface AppConfig {
   port: number;
+  env: string;
   debug: boolean;
-  timeout: number;
 }
 
-const DEFAULT_CONFIG: AppConfig = {
-  port: 8080,
+const defaults: AppConfig = {
+  port: 3000,
+  env: 'development',
   debug: false,
-  timeout: 3000,
 };
 
 /**
- * Merges partial user config with application defaults
+ * Merges partial config with defaults
  */
-export function loadConfig(userConfig: Partial<AppConfig> = {}): AppConfig {
-  return {
-    ...DEFAULT_CONFIG,
-    ...userConfig,
-  };
+export function loadConfig(overrides: Partial<AppConfig> = {}): AppConfig {
+  return { ...defaults, ...overrides };
 }
 
 /**
- * Validates that the configuration meets strict requirements
+ * Loads config from environment variables with fallbacks
  */
-export function validateConfig(config: AppConfig): void {
-  if (config.port < 1024 || config.port > 65535) {
-    throw new Error('Invalid port range. Use 1024-65535.');
-  }
-
-  if (config.timeout < 0) {
-    throw new Error('Timeout must be a positive integer.');
-  }
+export function loadConfigFromEnv(): AppConfig {
+  return loadConfig({
+    port: process.env.PORT ? parseInt(process.env.PORT, 10) : undefined,
+    env: process.env.NODE_ENV,
+    debug: process.env.DEBUG === 'true',
+  });
 }
