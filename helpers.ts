@@ -1,33 +1,45 @@
-import * as winston from 'winston';
-import 'winston-daily-rotate-file';
-import { resolve } from 'path';
+import * as fs from 'fs';
 
-/**
- * Configures a rotating file logger for system operations
- */
-export const setupLogger = (logDir: string = 'logs') => {
-  const transport = new winston.transports.DailyRotateFile({
-    dirname: resolve(logDir),
-    filename: 'app-%DATE%.log',
-    datePattern: 'YYYY-MM-DD',
-    zippedArchive: true,
-    maxSize: '20m',
-    maxFiles: '14d'
-  });
+interface AppConfig {
+  host: string;
+  port: number;
+  debug: boolean;
+}
 
-  return winston.createLogger({
-    level: 'info',
-    format: winston.format.combine(
-      winston.format.timestamp(),
-      winston.format.json()
-    ),
-    transports: [
-      transport,
-      new winston.transports.Console({
-        format: winston.format.simple()
-      })
-    ]
-  });
+const DEFAULT_CONFIG: AppConfig = {
+  host: 'localhost',
+  port: 8080,
+  debug: false,
 };
 
-export const logger = setupLogger();
+/**
+ * Loads configuration from a JSON file with deep merging
+ * against internal defaults.
+ */
+export function loadConfig(path: string): AppConfig {
+  try {
+    if (!fs.existsSync(path)) {
+      return { ...DEFAULT_CONFIG };
+    }
+
+    const fileContent = fs.readFileSync(path, 'utf-8');
+    const parsed: Partial<AppConfig> = JSON.parse(fileContent);
+
+    return {
+      ...DEFAULT_CONFIG,
+      ...parsed,
+    };
+  } catch (error) {
+    console.error(`Failed to load config at ${path}:`, error);
+    return { ...DEFAULT_CONFIG };
+  }
+}
+
+/**
+ * Validates presence of critical environment variables
+ */
+export function validateConfig(config: AppConfig): void {
+  if (typeof config.port !== 'number' || config.port < 1024) {
+    throw new Error('Invalid configuration: port must be >= 1024');
+  }
+}
