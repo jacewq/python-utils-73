@@ -1,29 +1,40 @@
+/**
+ * Configuration schema for python-utils-73 environment
+ */
+
 export interface AppConfig {
-  port: number;
-  env: string;
-  debug: boolean;
+  readonly env: 'development' | 'production' | 'testing';
+  readonly retryAttempts: number;
+  readonly timeoutMs: number;
+  readonly debug: boolean;
 }
 
-const defaults: AppConfig = {
-  port: 3000,
+/**
+ * Default application settings
+ */
+export const DEFAULT_CONFIG: AppConfig = {
   env: 'development',
-  debug: false,
+  retryAttempts: 3,
+  timeoutMs: 5000,
+  debug: true,
 };
 
 /**
- * Merges partial config with defaults
+ * Validates application configuration objects
+ * @param config - The config object to validate
+ * @returns boolean indicating if config is valid
  */
-export function loadConfig(overrides: Partial<AppConfig> = {}): AppConfig {
-  return { ...defaults, ...overrides };
+export function validateConfig(config: AppConfig): boolean {
+  if (config.retryAttempts < 0) return false;
+  if (config.timeoutMs < 0) return false;
+  return true;
 }
 
 /**
- * Loads config from environment variables with fallbacks
+ * Retrieves configuration with merged overrides
+ * @param overrides - Partial config to merge
+ * @returns The final merged configuration
  */
-export function loadConfigFromEnv(): AppConfig {
-  return loadConfig({
-    port: process.env.PORT ? parseInt(process.env.PORT, 10) : undefined,
-    env: process.env.NODE_ENV,
-    debug: process.env.DEBUG === 'true',
-  });
+export function getConfiguration(overrides: Partial<AppConfig> = {}): AppConfig {
+  return { ...DEFAULT_CONFIG, ...overrides };
 }
