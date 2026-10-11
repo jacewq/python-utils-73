@@ -1,40 +1,46 @@
-/**
- * Configuration schema for python-utils-73 environment
- */
-
-export interface AppConfig {
-  readonly env: 'development' | 'production' | 'testing';
-  readonly retryAttempts: number;
-  readonly timeoutMs: number;
-  readonly debug: boolean;
+export interface ProcessingConfig {
+  maxRetries: number;
+  timeoutMs: number;
+  inputSchema: Record<string, string>;
 }
 
 /**
- * Default application settings
+ * Validates incoming data against the defined schema
+ * to ensure type safety in the main processing loop
  */
-export const DEFAULT_CONFIG: AppConfig = {
-  env: 'development',
-  retryAttempts: 3,
-  timeoutMs: 5000,
-  debug: true,
-};
+export function validateInput(data: unknown, schema: Record<string, string>): boolean {
+  if (!data || typeof data !== 'object') {
+    return false;
+  }
 
-/**
- * Validates application configuration objects
- * @param config - The config object to validate
- * @returns boolean indicating if config is valid
- */
-export function validateConfig(config: AppConfig): boolean {
-  if (config.retryAttempts < 0) return false;
-  if (config.timeoutMs < 0) return false;
+  const input = data as Record<string, any>;
+  for (const [key, expectedType] of Object.entries(schema)) {
+    if (typeof input[key] !== expectedType) {
+      return false;
+    }
+  }
+
   return true;
 }
 
-/**
- * Retrieves configuration with merged overrides
- * @param overrides - Partial config to merge
- * @returns The final merged configuration
- */
-export function getConfiguration(overrides: Partial<AppConfig> = {}): AppConfig {
-  return { ...DEFAULT_CONFIG, ...overrides };
+export const DEFAULT_CONFIG: ProcessingConfig = {
+  maxRetries: 3,
+  timeoutMs: 5000,
+  inputSchema: {
+    id: 'number',
+    payload: 'string',
+    active: 'boolean'
+  }
+};
+
+export function processLoop(items: unknown[]): void {
+  for (const item of items) {
+    if (!validateInput(item, DEFAULT_CONFIG.inputSchema)) {
+      console.error('Invalid item format skipped:', item);
+      continue;
+    }
+    
+    // Proceed with safe processing
+    console.log('Processing item:', (item as any).id);
+  }
 }
