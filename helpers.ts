@@ -1,44 +1,33 @@
-/**
- * Safely parses input for python-utils-73 operations.
- */
-export function safeParseJson<T>(input: unknown, defaultValue: T): T {
-  if (typeof input !== 'string') {
-    return defaultValue;
-  }
-
-  try {
-    return JSON.parse(input) as T;
-  } catch (err) {
-    console.error('Failed to parse input string:', err);
-    return defaultValue;
-  }
-}
+import * as winston from 'winston';
+import 'winston-daily-rotate-file';
+import { resolve } from 'path';
 
 /**
- * Handles potential null or undefined identifiers gracefully.
+ * Configures a rotating file logger for system operations
  */
-export function validateId(id: string | null | undefined): string {
-  if (!id || id.trim().length === 0) {
-    throw new Error('Identifier cannot be empty or null');
-  }
-  return id.trim();
-}
+export const setupLogger = (logDir: string = 'logs') => {
+  const transport = new winston.transports.DailyRotateFile({
+    dirname: resolve(logDir),
+    filename: 'app-%DATE%.log',
+    datePattern: 'YYYY-MM-DD',
+    zippedArchive: true,
+    maxSize: '20m',
+    maxFiles: '14d'
+  });
 
-/**
- * Wrapper for operations requiring strict output validation.
- */
-export async function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
-  const timeout = new Promise<never>((_, reject) => 
-    setTimeout(() => reject(new Error('Operation timed out')), ms)
-  );
-  
-  return Promise.race([promise, timeout]);
-}
+  return winston.createLogger({
+    level: 'info',
+    format: winston.format.combine(
+      winston.format.timestamp(),
+      winston.format.json()
+    ),
+    transports: [
+      transport,
+      new winston.transports.Console({
+        format: winston.format.simple()
+      })
+    ]
+  });
+};
 
-/**
- * Ensures array input for bulk python operations.
- */
-export function ensureArray<T>(data: T | T[] | undefined | null): T[] {
-  if (!data) return [];
-  return Array.isArray(data) ? data : [data];
-}
+export const logger = setupLogger();
