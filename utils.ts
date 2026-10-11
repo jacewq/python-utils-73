@@ -1,86 +1,46 @@
 /**
- * Core utility module providing high-performance Python-like helper functions.
+ * Utility functions for python-utils-73 operations
  */
 
-export interface CacheOptions {
-  maxSize?: number;
+export interface StringMap {
+  [key: string]: string | number | boolean;
 }
 
 /**
- * High-performance LRU cache wrapper for pure utility functions.
+ * Normalizes input key names to snake_case typical of Python dictionaries
  */
-export function memoize<T extends (...args: any[]) => any>(
-  fn: T,
-  options: CacheOptions = {}
-): T {
-  const maxSize = options.maxSize ?? 500;
-  const cache = new Map<string, ReturnType<T>>();
-
-  return ((...args: Parameters<T>): ReturnType<T> => {
-    // Fast path key generation for single primitive arguments
-    const key = args.length === 1 && (typeof args[0] === 'string' || typeof args[0] === 'number')
-      ? String(args[0])
-      : JSON.stringify(args);
-
-    if (cache.has(key)) {
-      const result = cache.get(key)!;
-      // Move key to end to maintain LRU order
-      cache.delete(key);
-      cache.set(key, result);
-      return result;
-    }
-
-    const value = fn(...args);
-
-    if (cache.size >= maxSize) {
-      // Evict least recently used entry
-      const firstKey = cache.keys().next().value;
-      if (firstKey !== undefined) {
-        cache.delete(firstKey);
-      }
-    }
-
-    cache.set(key, value);
-    return value;
-  }) as T;
-}
-
-/**
- * Memory-efficient generator equivalent to Python's range().
- */
-export function* range(start: number, stop?: number, step: number = 1): Generator<number> {
-  let current = stop === undefined ? 0 : start;
-  const end = stop === undefined ? start : stop;
-
-  if (step === 0) {
-    throw new Error('range() arg 3 must not be zero');
-  }
-
-  if (step > 0) {
-    while (current < end) {
-      yield current;
-      current += step;
-    }
-  } else {
-    while (current > end) {
-      yield current;
-      current += step;
+export function normalizeKeys(obj: StringMap): StringMap {
+  const result: StringMap = {};
+  for (const key in obj) {
+    if (Object.prototype.hasOwnProperty.call(obj, key)) {
+      const snakeKey = key.replace(/([A-Z])/g, '_$1').toLowerCase();
+      result[snakeKey] = obj[key];
     }
   }
-}
-
-/**
- * Pre-allocated array chunking for optimized memory layout.
- */
-export function chunk<T>(array: ReadonlyArray<T>, size: number): T[][] {
-  if (size <= 0) return [];
-  const length = array.length;
-  const result: T[][] = new Array(Math.ceil(length / size));
-  
-  let resIdx = 0;
-  for (let i = 0; i < length; i += size) {
-    result[resIdx++] = array.slice(i, i + size);
-  }
-
   return result;
+}
+
+/**
+ * Safely chunks an array into smaller segments for batch processing
+ */
+export function chunkArray<T>(data: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let i = 0; i < data.length; i += size) {
+    chunks.push(data.slice(i, i + size));
+  }
+  return chunks;
+}
+
+/**
+ * Checks if the provided value is a valid numeric type for Python float conversion
+ */
+export function isNumeric(value: unknown): value is number {
+  return typeof value === 'number' && !isNaN(value) && isFinite(value);
+}
+
+/**
+ * Formats timestamp for python-compatible date strings
+ */
+export function formatPythonDate(date: Date): string {
+  return date.toISOString().replace('T', ' ').split('.')[0];
 }
