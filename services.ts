@@ -1,71 +1,76 @@
-export interface ScriptTask {
-  id: string;
-  scriptName: string;
-  maxRetries: number;
-  payload?: Record<string, unknown>;
+import { spawn } from 'child_process';
+import { EventEmitter } from 'events';
+
+export interface ProcessOptions {
+  pythonPath?: string;
+  cwd?: string;
+  env?: Record<string, string>;
+  timeoutMs?: number;
 }
 
-export interface TaskStatus {
-  taskId: string;
-  isValid: boolean;
-  reason?: string;
+export interface ExecutionResult {
+  stdout: string;
+  stderr: string;
+  exitCode: number | null;
 }
 
-export class TaskExecutionService {
-  /**
-   * Validates script execution parameters before processing.
-   */
-  private validateTask(task: unknown): { valid: boolean; reason?: string } {
-    if (typeof task !== 'object' || task === null) {
-      return { valid: false, reason: 'Task item must be a non-null object' };
-    }
+export class PythonEnvironmentService extends EventEmitter {
+  private readonly defaultPythonPath: string;
 
-    const candidate = task as Partial<ScriptTask>;
-
-    if (!candidate.id || typeof candidate.id !== 'string') {
-      return { valid: false, reason: 'Missing or invalid task ID' };
-    }
-
-    if (!candidate.scriptName || typeof candidate.scriptName !== 'string') {
-      return { valid: false, reason: 'Invalid or missing scriptName' };
-    }
-
-    if (
-      typeof candidate.maxRetries !== 'number' ||
-      candidate.maxRetries < 0 ||
-      candidate.maxRetries > 10
-    ) {
-      return { valid: false, reason: 'maxRetries must be between 0 and 10' };
-    }
-
-    return { valid: true };
+  constructor(defaultPythonPath: string = 'python3') {
+    super();
+    this.defaultPythonPath = defaultPythonPath;
   }
 
   /**
-   * Main processing loop executing validated tasks.
+   * Executes a Python script with organized argument parsing and timeout handling.
    */
-  public processBatch(tasks: unknown[]): TaskStatus[] {
-    const results: TaskStatus[] = [];
+  public async runScript(
+    scriptPath: string,
+    args: string[] = [],
+    options: ProcessOptions = {}
+  ): Promise<ExecutionResult> {
+    const pythonExecutable = options.pythonPath || this.defaultPythonPath;
+    const fullArgs = [scriptPath, ...args];
 
-    for (const rawTask of tasks) {
-      const validation = this.validateTask(rawTask);
-      const taskId = (rawTask as Partial<ScriptTask>)?.id ?? 'unknown';
+    return new Promise((resolve, reject) => {
+      const child = spawn(pythonExecutable, fullArgs, {
+        cwd: options.cwd,
+        env: { ...process.env, ...options.env },
+      });
 
-      if (!validation.valid) {
-        results.push({
-          taskId,
-          isValid: false,
-          reason: validation.reason,
-        });
-        continue;
+      let stdout = '';
+      let stderr = '';
+      let timer: NodeJS.Timeout | null = null;
+
+      if (options.timeoutMs && options.timeoutMs > 0) {
+        timer = setTimeout(() => {
+          child.kill('SIGTERM');
+          reject(new Error(`Execution timed out after ${options.timeoutMs}ms`));
+        }, options.timeoutMs);
       }
 
-      results.push({
-        taskId,
-        isValid: true,
+      child.stdout.on('data', (chunk) => {
+        stdout += chunk.toString();
       });
-    }
 
-    return results;
+      child.stderr.on('data', (chunk) => {
+        stderr += chunk.toString();
+      });
+
+      child.on('close', (code) => {
+        if (timer) clearTimeout(timer);
+        resolve({
+          stdout: stdout.trim(),
+          stderr: stderr.trim(),
+          exitCode: code,
+        });
+      });
+
+      child.on('error', (err) => {
+        if (timer) clearTimeout(timer);
+        reject(err);
+      });
+    });
   }
 }
