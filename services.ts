@@ -1,46 +1,75 @@
-export type JsonValue = string | number | boolean | null | { [key: string]: JsonValue } | JsonValue[];
-
 /**
- * safely parse json string with default value fallback
+ * Service providing utility methods for manipulating and transforming
+ * nested object structures similar to Python dictionary operations.
  */
-export function parseJson<T>(input: string, fallback: T): T {
-  try {
-    return JSON.parse(input) as T;
-  } catch {
-    return fallback;
-  }
-}
 
-/**
- * delay execution for a given number of milliseconds
- */
-export const sleep = (ms: number): Promise<void> => {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-};
+export type Dict<T = any> = Record<string, T>;
 
-/**
- * check if value is a plain object
- */
-export function isObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
+export class DataTransformService {
+  /**
+   * Flattens a nested object into a single-level object with dot-notated keys.
+   */
+  static flatten(obj: Dict, prefix = ''): Dict {
+    const flattened: Dict = {};
 
-/**
- * pick specific keys from an object
- */
-export function pick<T, K extends keyof T>(obj: T, keys: K[]): Pick<T, K> {
-  const result = {} as Pick<T, K>;
-  for (const key of keys) {
-    if (key in obj) {
-      result[key] = obj[key];
+    for (const [key, value] of Object.entries(obj)) {
+      const newKey = prefix ? `${prefix}.${key}` : key;
+
+      if (
+        value !== null &&
+        typeof value === 'object' &&
+        !Array.isArray(value) &&
+        Object.keys(value).length > 0
+      ) {
+        Object.assign(flattened, this.flatten(value, newKey));
+      } else {
+        flattened[newKey] = value;
+      }
     }
-  }
-  return result;
-}
 
-/**
- * generate a random integer within a range
- */
-export function getRandomInt(min: number, max: number): number {
-  return Math.floor(Math.random() * (max - min + 1)) + min;
+    return flattened;
+  }
+
+  /**
+   * Unflattens a dot-notated single-level object back into a nested object structure.
+   */
+  static unflatten(obj: Dict): Dict {
+    const result: Dict = {};
+
+    for (const [key, value] of Object.entries(obj)) {
+      const keys = key.split('.');
+      let current = result;
+
+      for (let i = 0; i < keys.length; i++) {
+        const k = keys[i];
+        if (i === keys.length - 1) {
+          current[k] = value;
+        } else {
+          if (!(k in current) || typeof current[k] !== 'object' || current[k] === null) {
+            current[k] = {};
+          }
+          current = current[k];
+        }
+      }
+    }
+
+    return result;
+  }
+
+  /**
+   * Safely retrieves nested values using dot-notation path with default fallback.
+   */
+  static getPath<T = any>(obj: Dict, path: string, defaultValue?: T): T | undefined {
+    const keys = path.split('.');
+    let current: any = obj;
+
+    for (const key of keys) {
+      if (current === null || current === undefined || typeof current !== 'object') {
+        return defaultValue;
+      }
+      current = current[key];
+    }
+
+    return current === undefined ? defaultValue : current;
+  }
 }
