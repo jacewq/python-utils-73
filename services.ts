@@ -1,76 +1,46 @@
-import { spawn } from 'child_process';
-import { EventEmitter } from 'events';
+export type JsonValue = string | number | boolean | null | { [key: string]: JsonValue } | JsonValue[];
 
-export interface ProcessOptions {
-  pythonPath?: string;
-  cwd?: string;
-  env?: Record<string, string>;
-  timeoutMs?: number;
+/**
+ * safely parse json string with default value fallback
+ */
+export function parseJson<T>(input: string, fallback: T): T {
+  try {
+    return JSON.parse(input) as T;
+  } catch {
+    return fallback;
+  }
 }
 
-export interface ExecutionResult {
-  stdout: string;
-  stderr: string;
-  exitCode: number | null;
+/**
+ * delay execution for a given number of milliseconds
+ */
+export const sleep = (ms: number): Promise<void> => {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+};
+
+/**
+ * check if value is a plain object
+ */
+export function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-export class PythonEnvironmentService extends EventEmitter {
-  private readonly defaultPythonPath: string;
-
-  constructor(defaultPythonPath: string = 'python3') {
-    super();
-    this.defaultPythonPath = defaultPythonPath;
+/**
+ * pick specific keys from an object
+ */
+export function pick<T, K extends keyof T>(obj: T, keys: K[]): Pick<T, K> {
+  const result = {} as Pick<T, K>;
+  for (const key of keys) {
+    if (key in obj) {
+      result[key] = obj[key];
+    }
   }
+  return result;
+}
 
-  /**
-   * Executes a Python script with organized argument parsing and timeout handling.
-   */
-  public async runScript(
-    scriptPath: string,
-    args: string[] = [],
-    options: ProcessOptions = {}
-  ): Promise<ExecutionResult> {
-    const pythonExecutable = options.pythonPath || this.defaultPythonPath;
-    const fullArgs = [scriptPath, ...args];
-
-    return new Promise((resolve, reject) => {
-      const child = spawn(pythonExecutable, fullArgs, {
-        cwd: options.cwd,
-        env: { ...process.env, ...options.env },
-      });
-
-      let stdout = '';
-      let stderr = '';
-      let timer: NodeJS.Timeout | null = null;
-
-      if (options.timeoutMs && options.timeoutMs > 0) {
-        timer = setTimeout(() => {
-          child.kill('SIGTERM');
-          reject(new Error(`Execution timed out after ${options.timeoutMs}ms`));
-        }, options.timeoutMs);
-      }
-
-      child.stdout.on('data', (chunk) => {
-        stdout += chunk.toString();
-      });
-
-      child.stderr.on('data', (chunk) => {
-        stderr += chunk.toString();
-      });
-
-      child.on('close', (code) => {
-        if (timer) clearTimeout(timer);
-        resolve({
-          stdout: stdout.trim(),
-          stderr: stderr.trim(),
-          exitCode: code,
-        });
-      });
-
-      child.on('error', (err) => {
-        if (timer) clearTimeout(timer);
-        reject(err);
-      });
-    });
-  }
+/**
+ * generate a random integer within a range
+ */
+export function getRandomInt(min: number, max: number): number {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
 }
