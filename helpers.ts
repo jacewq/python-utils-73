@@ -1,45 +1,29 @@
-import * as fs from 'fs';
-
-interface AppConfig {
-  host: string;
-  port: number;
-  debug: boolean;
+export interface RetryOptions {
+  maxAttempts?: number;
+  delayMs?: number;
 }
 
-const DEFAULT_CONFIG: AppConfig = {
-  host: 'localhost',
-  port: 8080,
-  debug: false,
-};
-
 /**
- * Loads configuration from a JSON file with deep merging
- * against internal defaults.
+ * Executes an asynchronous task with simple exponential backoff
  */
-export function loadConfig(path: string): AppConfig {
-  try {
-    if (!fs.existsSync(path)) {
-      return { ...DEFAULT_CONFIG };
+export async function withRetry<T>(
+  task: () => Promise<T>,
+  options: RetryOptions = {}
+): Promise<T> {
+  const { maxAttempts = 3, delayMs = 1000 } = options;
+  let lastError: Error | unknown;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await task();
+    } catch (err) {
+      lastError = err;
+      if (attempt === maxAttempts) break;
+      
+      const backoff = delayMs * Math.pow(2, attempt - 1);
+      await new Promise((resolve) => setTimeout(resolve, backoff));
     }
-
-    const fileContent = fs.readFileSync(path, 'utf-8');
-    const parsed: Partial<AppConfig> = JSON.parse(fileContent);
-
-    return {
-      ...DEFAULT_CONFIG,
-      ...parsed,
-    };
-  } catch (error) {
-    console.error(`Failed to load config at ${path}:`, error);
-    return { ...DEFAULT_CONFIG };
   }
-}
 
-/**
- * Validates presence of critical environment variables
- */
-export function validateConfig(config: AppConfig): void {
-  if (typeof config.port !== 'number' || config.port < 1024) {
-    throw new Error('Invalid configuration: port must be >= 1024');
-  }
+  throw lastError;
 }
