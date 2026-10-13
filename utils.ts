@@ -1,42 +1,38 @@
 /**
- * Python-utils-73 common utility collection
+ * Common utility functions for python-utils-73
  */
 
-export const slugify = (text: string): string => {
-  return text
-    .toString()
-    .toLowerCase()
-    .trim()
-    .replace(/\s+/g, '-')
-    .replace(/[^\w\-]+/g, '')
-    .replace(/\-\-+/g, '-');
-};
+export const sleep = (ms: number): Promise<void> => 
+  new Promise((resolve) => setTimeout(resolve, ms));
 
-export const delay = (ms: number): Promise<void> => {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+export const debounce = <T extends (...args: any[]) => any>(fn: T, delay: number) => {
+  let timer: ReturnType<typeof setTimeout>;
+  return (...args: Parameters<T>): void => {
+    clearTimeout(timer);
+    timer = setTimeout(() => fn(...args), delay);
+  };
 };
 
 export const chunkArray = <T>(array: T[], size: number): T[][] => {
-  return Array.from({ length: Math.ceil(array.length / size) }, (_, i) =>
-    array.slice(i * size, i * size + size)
-  );
-};
-
-export const isObject = (item: unknown): item is Record<string, unknown> => {
-  return !!item && typeof item === 'object' && !Array.isArray(item);
-};
-
-export const deepMerge = <T extends Record<string, any>>(target: T, source: T): T => {
-  const output = { ...target };
-  if (isObject(target) && isObject(source)) {
-    Object.keys(source).forEach((key) => {
-      if (isObject(source[key])) {
-        if (!(key in target)) Object.assign(output, { [key]: source[key] });
-        else output[key] = deepMerge(target[key], source[key]);
-      } else {
-        Object.assign(output, { [key]: source[key] });
-      }
-    });
+  const result: T[][] = [];
+  for (let i = 0; i < array.length; i += size) {
+    result.push(array.slice(i, i + size));
   }
-  return output;
+  return result;
+};
+
+export const isNotEmpty = <T>(value: T | null | undefined): value is T => {
+  return value !== null && value !== undefined;
+};
+
+export const safeParseJson = <T>(json: string, fallback: T): T => {
+  try {
+    return JSON.parse(json) as T;
+  } catch (e) {
+    return fallback;
+  }
+};
+
+export const getOrElse = <T>(value: T | undefined | null, fallback: T): T => {
+  return value ?? fallback;
 };
