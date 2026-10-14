@@ -1,75 +1,51 @@
 /**
- * Service providing utility methods for manipulating and transforming
- * nested object structures similar to Python dictionary operations.
+ * Service for processing Python-related utility tasks
+ * and managing data transformation pipelines.
  */
 
-export type Dict<T = any> = Record<string, T>;
-
-export class DataTransformService {
-  /**
-   * Flattens a nested object into a single-level object with dot-notated keys.
-   */
-  static flatten(obj: Dict, prefix = ''): Dict {
-    const flattened: Dict = {};
-
-    for (const [key, value] of Object.entries(obj)) {
-      const newKey = prefix ? `${prefix}.${key}` : key;
-
-      if (
-        value !== null &&
-        typeof value === 'object' &&
-        !Array.isArray(value) &&
-        Object.keys(value).length > 0
-      ) {
-        Object.assign(flattened, this.flatten(value, newKey));
-      } else {
-        flattened[newKey] = value;
-      }
-    }
-
-    return flattened;
-  }
-
-  /**
-   * Unflattens a dot-notated single-level object back into a nested object structure.
-   */
-  static unflatten(obj: Dict): Dict {
-    const result: Dict = {};
-
-    for (const [key, value] of Object.entries(obj)) {
-      const keys = key.split('.');
-      let current = result;
-
-      for (let i = 0; i < keys.length; i++) {
-        const k = keys[i];
-        if (i === keys.length - 1) {
-          current[k] = value;
-        } else {
-          if (!(k in current) || typeof current[k] !== 'object' || current[k] === null) {
-            current[k] = {};
-          }
-          current = current[k];
-        }
-      }
-    }
-
-    return result;
-  }
-
-  /**
-   * Safely retrieves nested values using dot-notation path with default fallback.
-   */
-  static getPath<T = any>(obj: Dict, path: string, defaultValue?: T): T | undefined {
-    const keys = path.split('.');
-    let current: any = obj;
-
-    for (const key of keys) {
-      if (current === null || current === undefined || typeof current !== 'object') {
-        return defaultValue;
-      }
-      current = current[key];
-    }
-
-    return current === undefined ? defaultValue : current;
-  }
+export interface TaskConfig {
+  id: string;
+  retries: number;
+  timeout: number;
 }
+
+export interface ProcessResult {
+  success: boolean;
+  output: string;
+  durationMs: number;
+}
+
+/**
+ * Executes a python utility operation with standard configuration.
+ */
+export const executePythonTask = async (
+  command: string,
+  config: TaskConfig
+): Promise<ProcessResult> => {
+  const startTime = Date.now();
+
+  try {
+    // Simulate execution of python command
+    const output = `Result from ${command}`;
+    
+    return {
+      success: true,
+      output,
+      durationMs: Date.now() - startTime,
+    };
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    return {
+      success: false,
+      output: errorMessage,
+      durationMs: Date.now() - startTime,
+    };
+  }
+};
+
+/**
+ * Validates process configuration object integrity.
+ */
+export const validateConfig = (config: TaskConfig): boolean => {
+  return config.retries >= 0 && config.timeout > 0;
+};
