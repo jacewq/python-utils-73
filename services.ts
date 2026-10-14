@@ -1,51 +1,37 @@
-/**
- * Service for processing Python-related utility tasks
- * and managing data transformation pipelines.
- */
-
-export interface TaskConfig {
-  id: string;
-  retries: number;
-  timeout: number;
-}
-
-export interface ProcessResult {
-  success: boolean;
-  output: string;
-  durationMs: number;
+export interface PythonProcessResult {
+  stdout: string;
+  stderr: string;
+  exitCode: number | null;
 }
 
 /**
- * Executes a python utility operation with standard configuration.
+ * executes python scripts using local runtime
  */
-export const executePythonTask = async (
-  command: string,
-  config: TaskConfig
-): Promise<ProcessResult> => {
-  const startTime = Date.now();
+export async function executePythonScript(scriptPath: string, args: string[] = []): Promise<PythonProcessResult> {
+  const { spawn } = await import('node:child_process');
 
-  try {
-    // Simulate execution of python command
-    const output = `Result from ${command}`;
-    
-    return {
-      success: true,
-      output,
-      durationMs: Date.now() - startTime,
-    };
-  } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    return {
-      success: false,
-      output: errorMessage,
-      durationMs: Date.now() - startTime,
-    };
-  }
+  return new Promise((resolve, reject) => {
+    const python = spawn('python3', [scriptPath, ...args]);
+    let stdout = '';
+    let stderr = '';
+
+    python.stdout.on('data', (data) => { stdout += data.toString(); });
+    python.stderr.on('data', (data) => { stderr += data.toString(); });
+
+    python.on('close', (code) => {
+      resolve({ stdout, stderr, exitCode: code });
+    });
+
+    python.on('error', (err) => {
+      reject(err);
+    });
+  });
+}
+
+export const formatPythonOutput = (output: string): string[] => {
+  return output.trim().split('\n').filter(Boolean);
 };
 
-/**
- * Validates process configuration object integrity.
- */
-export const validateConfig = (config: TaskConfig): boolean => {
-  return config.retries >= 0 && config.timeout > 0;
+export const validateExitStatus = (code: number | null): boolean => {
+  return code === 0;
 };
