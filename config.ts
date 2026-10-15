@@ -1,46 +1,36 @@
-export interface ProcessingConfig {
-  maxRetries: number;
-  timeoutMs: number;
-  inputSchema: Record<string, string>;
+export interface CacheConfig {
+  ttl: number;
+  maxSize: number;
 }
 
 /**
- * Validates incoming data against the defined schema
- * to ensure type safety in the main processing loop
+ * Configuration manager with memoized accessors
+ * to prevent redundant lookups in core loops
  */
-export function validateInput(data: unknown, schema: Record<string, string>): boolean {
-  if (!data || typeof data !== 'object') {
-    return false;
-  }
+class ConfigManager {
+  private cache: Map<string, any> = new Map();
+  private readonly config: CacheConfig = {
+    ttl: 60000,
+    maxSize: 1000,
+  };
 
-  const input = data as Record<string, any>;
-  for (const [key, expectedType] of Object.entries(schema)) {
-    if (typeof input[key] !== expectedType) {
-      return false;
+  public getConfiguration<T>(key: string, defaultValue: T): T {
+    if (this.cache.has(key)) {
+      return this.cache.get(key);
     }
+
+    const value = (process.env[key] as unknown as T) ?? defaultValue;
+    this.cache.set(key, value);
+    return value;
   }
 
-  return true;
+  public invalidate(): void {
+    this.cache.clear();
+  }
+
+  public get ttl(): number {
+    return this.config.ttl;
+  }
 }
 
-export const DEFAULT_CONFIG: ProcessingConfig = {
-  maxRetries: 3,
-  timeoutMs: 5000,
-  inputSchema: {
-    id: 'number',
-    payload: 'string',
-    active: 'boolean'
-  }
-};
-
-export function processLoop(items: unknown[]): void {
-  for (const item of items) {
-    if (!validateInput(item, DEFAULT_CONFIG.inputSchema)) {
-      console.error('Invalid item format skipped:', item);
-      continue;
-    }
-    
-    // Proceed with safe processing
-    console.log('Processing item:', (item as any).id);
-  }
-}
+export const configManager = new ConfigManager();
