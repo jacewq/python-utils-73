@@ -1,75 +1,44 @@
-export interface ProcessingTask {
-  id: string;
-  scriptName: string;
-  timeoutMs: number;
-  params?: Record<string, unknown>;
-}
+/**
+ * Utility functions for common data manipulation tasks
+ * within the python-utils-73 ecosystem.
+ */
 
-export interface ValidationResult {
-  valid: boolean;
-  errors: string[];
-}
+export type DataRecord = Record<string, unknown>;
 
-export interface ProcessedItemResult {
-  id: string;
-  success: boolean;
-  errors?: string[];
-  output?: string;
-}
-
-export function validateTaskInput(task: unknown): ValidationResult {
-  const errors: string[] = [];
-
-  if (!task || typeof task !== 'object') {
-    return { valid: false, errors: ['Task input must be a non-null object'] };
-  }
-
-  const t = task as Record<string, unknown>;
-
-  if (typeof t.id !== 'string' || t.id.trim() === '') {
-    errors.push('Task ID must be a non-empty string');
-  }
-
-  if (typeof t.scriptName !== 'string' || !/^[a-zA-Z0-9_\-.]+\.py$/.test(t.scriptName)) {
-    errors.push('Script name must be a valid .py filename');
-  }
-
-  if (typeof t.timeoutMs !== 'number' || t.timeoutMs <= 0 || t.timeoutMs > 300000) {
-    errors.push('Timeout must be a positive number up to 300000ms');
-  }
-
-  return {
-    valid: errors.length === 0,
-    errors,
-  };
-}
-
-export function processTaskBatch(tasks: unknown[]): ProcessedItemResult[] {
-  const results: ProcessedItemResult[] = [];
-
-  for (const rawTask of tasks) {
-    const validation = validateTaskInput(rawTask);
-
-    if (!validation.valid) {
-      const taskId = rawTask && typeof rawTask === 'object' && 'id' in rawTask && typeof (rawTask as Record<string, unknown>).id === 'string'
-        ? (rawTask as Record<string, unknown>).id as string
-        : 'unknown';
-
-      results.push({
-        id: taskId,
-        success: false,
-        errors: validation.errors,
-      });
-      continue;
+/**
+ * Cleans an object by removing null or undefined values
+ */
+export function sanitizeData(data: DataRecord): DataRecord {
+  return Object.entries(data).reduce((acc, [key, value]) => {
+    if (value !== null && value !== undefined) {
+      acc[key] = value;
     }
+    return acc;
+  }, {} as DataRecord);
+}
 
-    const task = rawTask as ProcessingTask;
-    results.push({
-      id: task.id,
-      success: true,
-      output: `Executed ${task.scriptName} successfully`,
-    });
+/**
+ * Safely parses a JSON string with fallback default
+ */
+export function safeParseJson<T>(jsonString: string, fallback: T): T {
+  try {
+    return JSON.parse(jsonString) as T;
+  } catch (error) {
+    console.error('Failed to parse JSON string', error);
+    return fallback;
   }
+}
 
-  return results;
+/**
+ * Groups an array of objects by a specific key
+ */
+export function groupBy<T extends Record<string, any>>(items: T[], key: keyof T): Record<string, T[]> {
+  return items.reduce((acc, item) => {
+    const group = String(item[key]);
+    if (!acc[group]) {
+      acc[group] = [];
+    }
+    acc[group].push(item);
+    return acc;
+  }, {} as Record<string, T[]>);
 }
