@@ -1,36 +1,75 @@
-export interface PythonProcessResult {
-  output: string;
-  exitCode: number;
-  error?: string;
+export interface ProcessingTask {
+  id: string;
+  scriptName: string;
+  timeoutMs: number;
+  params?: Record<string, unknown>;
 }
 
-/**
- * Formats a list of arguments into a shell-safe string for python execution.
- */
-export const formatArgs = (args: (string | number)[]): string => {
-  return args.map((arg) => (typeof arg === 'string' ? `"${arg}"` : arg)).join(' ');
-};
+export interface ValidationResult {
+  valid: boolean;
+  errors: string[];
+}
 
-/**
- * Parses a raw console buffer into a typed ProcessResult object.
- */
-export const parseOutput = (data: string, code: number | null): PythonProcessResult => {
-  const result: PythonProcessResult = {
-    output: data.trim(),
-    exitCode: code ?? 0,
-  };
+export interface ProcessedItemResult {
+  id: string;
+  success: boolean;
+  errors?: string[];
+  output?: string;
+}
 
-  if (result.exitCode !== 0) {
-    result.error = `Process exited with code ${result.exitCode}`;
+export function validateTaskInput(task: unknown): ValidationResult {
+  const errors: string[] = [];
+
+  if (!task || typeof task !== 'object') {
+    return { valid: false, errors: ['Task input must be a non-null object'] };
   }
 
-  return result;
-};
+  const t = task as Record<string, unknown>;
 
-/**
- * Validates that the provided python version string meets local requirements.
- */
-export const validateVersion = (version: string): boolean => {
-  const versionRegex = /^\d+\.\d+/;
-  return versionRegex.test(version);
-};
+  if (typeof t.id !== 'string' || t.id.trim() === '') {
+    errors.push('Task ID must be a non-empty string');
+  }
+
+  if (typeof t.scriptName !== 'string' || !/^[a-zA-Z0-9_\-.]+\.py$/.test(t.scriptName)) {
+    errors.push('Script name must be a valid .py filename');
+  }
+
+  if (typeof t.timeoutMs !== 'number' || t.timeoutMs <= 0 || t.timeoutMs > 300000) {
+    errors.push('Timeout must be a positive number up to 300000ms');
+  }
+
+  return {
+    valid: errors.length === 0,
+    errors,
+  };
+}
+
+export function processTaskBatch(tasks: unknown[]): ProcessedItemResult[] {
+  const results: ProcessedItemResult[] = [];
+
+  for (const rawTask of tasks) {
+    const validation = validateTaskInput(rawTask);
+
+    if (!validation.valid) {
+      const taskId = rawTask && typeof rawTask === 'object' && 'id' in rawTask && typeof (rawTask as Record<string, unknown>).id === 'string'
+        ? (rawTask as Record<string, unknown>).id as string
+        : 'unknown';
+
+      results.push({
+        id: taskId,
+        success: false,
+        errors: validation.errors,
+      });
+      continue;
+    }
+
+    const task = rawTask as ProcessingTask;
+    results.push({
+      id: task.id,
+      success: true,
+      output: `Executed ${task.scriptName} successfully`,
+    });
+  }
+
+  return results;
+}
