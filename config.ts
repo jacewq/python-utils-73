@@ -1,32 +1,42 @@
-interface AppConfig {
-  port: number;
-  host: string;
-  debug: boolean;
+export interface AppConfig {
+  maxRetries: number;
+  timeoutMs: number;
+  endpoint: string;
 }
 
-const DEFAULT_CONFIG: AppConfig = {
-  port: 3000,
-  host: 'localhost',
-  debug: false,
+export const DEFAULT_CONFIG: AppConfig = {
+  maxRetries: 3,
+  timeoutMs: 5000,
+  endpoint: 'http://localhost:8080',
 };
 
-/**
- * Merges user-provided config with default settings
- */
-export function loadConfig(userConfig: Partial<AppConfig>): AppConfig {
-  return {
-    ...DEFAULT_CONFIG,
-    ...userConfig,
-  };
+export function validateConfig(config: unknown): AppConfig {
+  if (!config || typeof config !== 'object') {
+    throw new Error('Configuration must be a valid object');
+  }
+
+  const c = config as Partial<AppConfig>;
+  
+  if (c.maxRetries !== undefined && (typeof c.maxRetries !== 'number' || c.maxRetries < 0)) {
+    throw new Error('maxRetries must be a positive number');
+  }
+
+  if (c.timeoutMs !== undefined && (typeof c.timeoutMs !== 'number' || c.timeoutMs < 100)) {
+    throw new Error('timeoutMs must be at least 100ms');
+  }
+
+  if (c.endpoint !== undefined && (typeof c.endpoint !== 'string' || !c.endpoint.startsWith('http'))) {
+    throw new Error('endpoint must be a valid URL string');
+  }
+
+  return { ...DEFAULT_CONFIG, ...c };
 }
 
-/**
- * Validates environment variables for server settings
- */
-export function getConfigFromEnv(): AppConfig {
-  return loadConfig({
-    port: process.env.PORT ? parseInt(process.env.PORT, 10) : undefined,
-    host: process.env.HOST,
-    debug: process.env.NODE_ENV !== 'production',
-  });
+export function safeLoadConfig(partialConfig: unknown): AppConfig {
+  try {
+    return validateConfig(partialConfig);
+  } catch (error) {
+    console.error('Configuration validation failed, using defaults:', error instanceof Error ? error.message : error);
+    return DEFAULT_CONFIG;
+  }
 }
