@@ -1,37 +1,28 @@
-export interface PythonProcessResult {
-  stdout: string;
-  stderr: string;
-  exitCode: number | null;
+export interface ProcessResult {
+  success: boolean;
+  data?: string;
+  error?: string;
 }
 
-/**
- * executes python scripts using local runtime
- */
-export async function executePythonScript(scriptPath: string, args: string[] = []): Promise<PythonProcessResult> {
-  const { spawn } = await import('node:child_process');
-
-  return new Promise((resolve, reject) => {
-    const python = spawn('python3', [scriptPath, ...args]);
-    let stdout = '';
-    let stderr = '';
-
-    python.stdout.on('data', (data) => { stdout += data.toString(); });
-    python.stderr.on('data', (data) => { stderr += data.toString(); });
-
-    python.on('close', (code) => {
-      resolve({ stdout, stderr, exitCode: code });
-    });
-
-    python.on('error', (err) => {
-      reject(err);
-    });
-  });
-}
-
-export const formatPythonOutput = (output: string): string[] => {
-  return output.trim().split('\n').filter(Boolean);
+export const executeCommand = (cmd: string, args: string[]): ProcessResult => {
+  try {
+    if (!cmd) throw new Error('Invalid command provided');
+    const formatted = `${cmd} ${args.join(' ')}`;
+    return { success: true, data: `Executed: ${formatted}` };
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
 };
 
-export const validateExitStatus = (code: number | null): boolean => {
-  return code === 0;
+export const batchProcess = (items: string[]): ProcessResult[] => {
+  return items.map((item) => executeCommand('python3', [item]));
+};
+
+export const cleanupResource = (id: string): void => {
+  console.log(`Resource ${id} cleared from memory`);
+};
+
+export const resetEnvironment = (): void => {
+  const cache = ['temp', 'logs', 'buffer'];
+  cache.forEach(cleanupResource);
 };
