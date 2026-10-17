@@ -1,42 +1,49 @@
-export interface AppConfig {
-  maxRetries: number;
-  timeoutMs: number;
-  endpoint: string;
+/**
+ * Configuration management for python-utils utility functions.
+ */
+
+export interface PythonUtilsConfig {
+  /** Default string encoding used across text operations */
+  encoding: BufferEncoding;
+  /** Whether to throw errors or return defaults on soft failures */
+  strictMode: boolean;
+  /** Maximum depth limit for recursive utility functions */
+  maxRecursionDepth: number;
+  /** Custom formatting truncate length for string representations */
+  reprTruncateLength: number;
 }
 
-export const DEFAULT_CONFIG: AppConfig = {
-  maxRetries: 3,
-  timeoutMs: 5000,
-  endpoint: 'http://localhost:8080',
+const DEFAULT_CONFIG: PythonUtilsConfig = {
+  encoding: 'utf-8',
+  strictMode: false,
+  maxRecursionDepth: 1000,
+  reprTruncateLength: 80,
 };
 
-export function validateConfig(config: unknown): AppConfig {
-  if (!config || typeof config !== 'object') {
-    throw new Error('Configuration must be a valid object');
-  }
+let activeConfig: PythonUtilsConfig = { ...DEFAULT_CONFIG };
 
-  const c = config as Partial<AppConfig>;
-  
-  if (c.maxRetries !== undefined && (typeof c.maxRetries !== 'number' || c.maxRetries < 0)) {
-    throw new Error('maxRetries must be a positive number');
-  }
-
-  if (c.timeoutMs !== undefined && (typeof c.timeoutMs !== 'number' || c.timeoutMs < 100)) {
-    throw new Error('timeoutMs must be at least 100ms');
-  }
-
-  if (c.endpoint !== undefined && (typeof c.endpoint !== 'string' || !c.endpoint.startsWith('http'))) {
-    throw new Error('endpoint must be a valid URL string');
-  }
-
-  return { ...DEFAULT_CONFIG, ...c };
+/**
+ * Retrieves the current active global configuration.
+ */
+export function getConfig(): Readonly<PythonUtilsConfig> {
+  return Object.freeze({ ...activeConfig });
 }
 
-export function safeLoadConfig(partialConfig: unknown): AppConfig {
-  try {
-    return validateConfig(partialConfig);
-  } catch (error) {
-    console.error('Configuration validation failed, using defaults:', error instanceof Error ? error.message : error);
-    return DEFAULT_CONFIG;
-  }
+/**
+ * Updates the global configuration with partial settings.
+ */
+export function setConfig(overrides: Partial<PythonUtilsConfig>): Readonly<PythonUtilsConfig> {
+  activeConfig = {
+    ...activeConfig,
+    ...overrides,
+  };
+  return getConfig();
+}
+
+/**
+ * Resets the configuration back to default system values.
+ */
+export function resetConfig(): Readonly<PythonUtilsConfig> {
+  activeConfig = { ...DEFAULT_CONFIG };
+  return getConfig();
 }
