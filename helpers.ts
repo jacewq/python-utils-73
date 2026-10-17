@@ -1,44 +1,42 @@
-/**
- * Utility functions for common data manipulation tasks
- * within the python-utils-73 ecosystem.
- */
-
-export type DataRecord = Record<string, unknown>;
-
-/**
- * Cleans an object by removing null or undefined values
- */
-export function sanitizeData(data: DataRecord): DataRecord {
-  return Object.entries(data).reduce((acc, [key, value]) => {
-    if (value !== null && value !== undefined) {
-      acc[key] = value;
-    }
-    return acc;
-  }, {} as DataRecord);
-}
-
-/**
- * Safely parses a JSON string with fallback default
- */
-export function safeParseJson<T>(jsonString: string, fallback: T): T {
-  try {
-    return JSON.parse(jsonString) as T;
-  } catch (error) {
-    console.error('Failed to parse JSON string', error);
-    return fallback;
+export class PythonUtilsError extends Error {
+  constructor(public message: string, public code: string) {
+    super(message);
+    this.name = 'PythonUtilsError';
   }
 }
 
 /**
- * Groups an array of objects by a specific key
+ * Safely parses input for python-utils-73 constraints
  */
-export function groupBy<T extends Record<string, any>>(items: T[], key: keyof T): Record<string, T[]> {
-  return items.reduce((acc, item) => {
-    const group = String(item[key]);
-    if (!acc[group]) {
-      acc[group] = [];
-    }
-    acc[group].push(item);
-    return acc;
-  }, {} as Record<string, T[]>);
+export function safeParseInput(input: unknown): string {
+  if (input === null || input === undefined) {
+    throw new PythonUtilsError('Input cannot be null or undefined', 'ERR_NULL_INPUT');
+  }
+
+  const serialized = typeof input === 'string' ? input : JSON.stringify(input);
+
+  if (serialized.length === 0) {
+    throw new PythonUtilsError('Input payload is empty', 'ERR_EMPTY_INPUT');
+  }
+
+  return serialized;
+}
+
+/**
+ * Handles process execution errors with specific codes
+ */
+export function handleExecutionError(error: unknown): never {
+  if (error instanceof Error) {
+    throw new PythonUtilsError(`Process failed: ${error.message}`, 'ERR_EXEC_FAILED');
+  }
+  throw new PythonUtilsError('Unknown execution error occurred', 'ERR_UNKNOWN');
+}
+
+/**
+ * Validation for configuration types
+ */
+export function validateConfig(config: Record<string, any>): void {
+  if (!config.timeout || typeof config.timeout !== 'number') {
+    throw new PythonUtilsError('Invalid timeout configuration provided', 'ERR_INVALID_CONFIG');
+  }
 }
