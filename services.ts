@@ -1,49 +1,39 @@
-interface MemoizeOptions {
-  ttl?: number;
+export interface ServiceResponse<T> {
+  data: T | null;
+  error: Error | null;
 }
 
-/**
- * Memoizes function results using a simple cache with TTL
- * to improve performance of repetitive computational tasks
- */
-export function memoize<T extends (...args: any[]) => any>(
-  fn: T,
-  options: MemoizeOptions = {}
-): (...args: Parameters<T>) => ReturnType<T> {
-  const cache = new Map<string, { value: ReturnType<T>; expiry: number }>();
-  const ttl = options.ttl || 60000;
-
-  return (...args: Parameters<T>): ReturnType<T> => {
-    const key = JSON.stringify(args);
-    const now = Date.now();
-
-    if (cache.has(key)) {
-      const cached = cache.get(key)!;
-      if (cached.expiry > now) {
-        return cached.value;
-      }
-      cache.delete(key);
-    }
-
-    const result = fn(...args);
-    cache.set(key, { value: result, expiry: now + ttl });
-    return result;
-  };
-}
-
-/**
- * Batched processing utility to minimize event loop blocking
- */
-export async function batchProcess<T, R>(
-  items: T[],
-  processor: (item: T) => R,
-  batchSize: number = 100
-): Promise<R[]> {
-  const results: R[] = [];
-  for (let i = 0; i < items.length; i += batchSize) {
-    const batch = items.slice(i, i + batchSize);
-    results.push(...batch.map(processor));
-    await new Promise((resolve) => setTimeout(resolve, 0));
+export const safeExecute = async <T>(operation: () => Promise<T>): Promise<ServiceResponse<T>> => {
+  try {
+    const result = await operation();
+    return { data: result, error: null };
+  } catch (err) {
+    const error = err instanceof Error ? err : new Error(String(err));
+    console.error(`[Service Error]: ${error.message}`);
+    return { data: null, error };
   }
-  return results;
-}
+};
+
+export const validateConfig = (config: Record<string, unknown>): void => {
+  if (!config || Object.keys(config).length === 0) {
+    throw new Error('Configuration object cannot be empty');
+  }
+  
+  for (const [key, value] of Object.entries(config)) {
+    if (value === undefined || value === null) {
+      throw new Error(`Missing required configuration value for key: ${key}`);
+    }
+  }
+};
+
+export const retryOperation = async <T>(fn: () => Promise<T>, retries = 3): Promise<T> => {
+  for (let i = 0; i < retries; i++) {
+    try {
+      return await fn();
+    } catch (err) {
+      if (i === retries - 1) throw err;
+      await new Promise((resolve) => setTimeout(resolve, 1000 * (i + 1)));
+    }
+  }
+  throw new Error('Operation failed after maximum retries');
+};
