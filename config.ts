@@ -1,26 +1,29 @@
+import { readFileSync } from 'fs';
+
 export interface AppConfig {
   port: number;
   host: string;
-  debug: boolean;
+  timeout: number;
 }
 
-const DEFAULT_CONFIG: AppConfig = {
-  port: 3000,
+const defaults: AppConfig = {
+  port: 8080,
   host: 'localhost',
-  debug: false,
+  timeout: 5000
 };
 
 /**
- * Loads configuration from environment with defaults
+ * Loads configuration from a JSON file, merging with defaults.
  */
-export function loadConfig(overrides: Partial<AppConfig> = {}): AppConfig {
-  return {
-    ...DEFAULT_CONFIG,
-    ...overrides,
-    port: Number(process.env.PORT) || overrides.port || DEFAULT_CONFIG.port,
-    host: process.env.HOST || overrides.host || DEFAULT_CONFIG.host,
-    debug: process.env.DEBUG === 'true' || overrides.debug || DEFAULT_CONFIG.debug,
-  };
-}
+export function loadConfig(path?: string): AppConfig {
+  if (!path) return { ...defaults };
 
-export const config = loadConfig();
+  try {
+    const fileContent = readFileSync(path, 'utf-8');
+    const userConfig = JSON.parse(fileContent);
+    return { ...defaults, ...userConfig };
+  } catch (err) {
+    console.error('Failed to load config, falling back to defaults');
+    return { ...defaults };
+  }
+}
