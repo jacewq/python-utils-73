@@ -1,37 +1,84 @@
-export interface ProcessResult {
-  success: boolean;
-  data: string | null;
-  timestamp: number;
+/**
+ * Python-like utility service providing common data structures and sequence manipulation.
+ */
+
+export interface KeyValuePair<K = string, V = unknown> {
+  key: K;
+  value: V;
 }
 
-/**
- * Orchestrates data transformation for Python-related utility processing
- * @param input Raw string input to be processed
- * @returns ProcessResult containing operation status and output data
- */
-export const processUtilityData = (input: string): ProcessResult => {
-  if (!input.trim()) {
-    return {
-      success: false,
-      data: null,
-      timestamp: Date.now(),
-    };
+export class PythonUtilsService {
+  /**
+   * Zips two arrays together into an array of key-value tuples, similar to Python's zip().
+   *
+   * @template T, U
+   * @param keys First array sequence
+   * @param values Second array sequence
+   * @returns Array of paired elements
+   */
+  public static zip<T, U>(keys: T[], values: U[]): Array<[T, U]> {
+    const minLength = Math.min(keys.length, values.length);
+    const result: Array<[T, U]> = [];
+
+    for (let i = 0; i < minLength; i++) {
+      result.push([keys[i], values[i]]);
+    }
+
+    return result;
   }
 
-  const transformed = `python_prefix_${input.toLowerCase()}`;
-  return {
-    success: true,
-    data: transformed,
-    timestamp: Date.now(),
-  };
-};
+  /**
+   * Simulates Python's dict.get method with fallback default value.
+   *
+   * @template T, K, D
+   * @param record Target dictionary object
+   * @param key Property key to retrieve
+   * @param defaultValue Default value when key does not exist
+   * @returns Value associated with key or default value
+   */
+  public static dictGet<T extends Record<string, unknown>, K extends string, D>(
+    record: T,
+    key: K,
+    defaultValue: D
+  ): unknown {
+    if (Object.prototype.hasOwnProperty.call(record, key) && record[key] !== undefined) {
+      return record[key];
+    }
+    return defaultValue;
+  }
 
-/**
- * Validates utility configuration schema
- * @param config Record of configuration key-value pairs
- * @returns Boolean indicating if config is valid
- */
-export const validateConfig = (config: Record<string, unknown>): boolean => {
-  const keys = Object.keys(config);
-  return keys.length > 0 && keys.every((key) => typeof key === 'string');
-};
+  /**
+   * Generates an array of numbers over a specified range, mimicking Python's range().
+   *
+   * @param start Start integer (inclusive) or stop if end is undefined
+   * @param end Stop integer (exclusive)
+   * @param step Value increment step
+   * @returns Array of numbers in specified range
+   */
+  public static range(start: number, end?: number, step: number = 1): number[] {
+    let actualStart = start;
+    let actualEnd = end;
+
+    if (actualEnd === undefined) {
+      actualEnd = start;
+      actualStart = 0;
+    }
+
+    if (step === 0) {
+      throw new Error("Step parameter cannot be zero");
+    }
+
+    const result: number[] = [];
+    if (step > 0) {
+      for (let i = actualStart; i < actualEnd; i += step) {
+        result.push(i);
+      }
+    } else {
+      for (let i = actualStart; i > actualEnd; i += step) {
+        result.push(i);
+      }
+    }
+
+    return result;
+  }
+}
