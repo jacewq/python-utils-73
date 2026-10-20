@@ -1,68 +1,40 @@
 /**
- * Python-inspired sequence and collection helper utilities for TypeScript.
+ * Flattens a nested object into a single level map.
+ * Keys are concatenated using dot notation.
  */
-
-/**
- * Generates a sequence of numbers from start (inclusive) to stop (exclusive) by step.
- *
- * @param start - Starting number of the sequence, or stopping number if stop is undefined.
- * @param stop - Ending number of the sequence (exclusive).
- * @param step - Number by which the sequence increments (default: 1).
- * @returns An array of numbers in the specified range.
- */
-export function range(start: number, stop?: number, step: number = 1): number[] {
-  if (stop === undefined) {
-    stop = start;
-    start = 0;
-  }
-
-  if (step === 0) {
-    throw new Error('Range step cannot be zero');
-  }
-
-  const result: number[] = [];
-  if (step > 0) {
-    for (let i = start; i < stop; i += step) {
-      result.push(i);
+export function flattenObject(obj: Record<string, any>, prefix = ''): Record<string, any> {
+  return Object.keys(obj).reduce((acc, key) => {
+    const pre = prefix.length ? `${prefix}.` : '';
+    if (typeof obj[key] === 'object' && obj[key] !== null && !Array.isArray(obj[key])) {
+      Object.assign(acc, flattenObject(obj[key], pre + key));
+    } else {
+      acc[pre + key] = obj[key];
     }
-  } else {
-    for (let i = start; i > stop; i += step) {
-      result.push(i);
-    }
-  }
-
-  return result;
+    return acc;
+  }, {} as Record<string, any>);
 }
 
 /**
- * Pairs elements from an array with their corresponding index.
- *
- * @template T
- * @param items - The array to enumerate over.
- * @param start - Starting index counter (default: 0).
- * @returns An array of tuples containing [index, item].
+ * Safely parses a JSON string with fallback return.
  */
-export function enumerate<T>(items: T[], start: number = 0): [number, T][] {
-  return items.map((item, index) => [start + index, item]);
+export function safeJsonParse<T>(json: string, fallback: T): T {
+  try {
+    return JSON.parse(json);
+  } catch {
+    return fallback;
+  }
 }
 
 /**
- * Splits an array into chunks of a specified maximum size.
- *
- * @template T
- * @param array - The source array to chunk.
- * @param size - Maximum size of each chunk.
- * @returns An array of array chunks.
+ * Groups an array of objects by a specific property.
  */
-export function chunk<T>(array: T[], size: number): T[][] {
-  if (size <= 0) {
-    throw new Error('Chunk size must be greater than zero');
-  }
-
-  const chunks: T[][] = [];
-  for (let i = 0; i < array.length; i += size) {
-    chunks.push(array.slice(i, i + size));
-  }
-
-  return chunks;
+export function groupBy<T>(array: T[], key: keyof T): Record<string, T[]> {
+  return array.reduce((acc, item) => {
+    const group = String(item[key]);
+    if (!acc[group]) {
+      acc[group] = [];
+    }
+    acc[group].push(item);
+    return acc;
+  }, {} as Record<string, T[]>);
 }
