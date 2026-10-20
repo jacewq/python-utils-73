@@ -1,36 +1,51 @@
 /**
- * Configuration settings for the python-utils-73 library.
+ * Core interface for sanitized data structures
  */
-export interface LibraryConfig {
-  readonly environment: 'development' | 'production';
-  readonly debug: boolean;
-  readonly timeoutMs: number;
+export interface DataPayload<T = unknown> {
+  id: string;
+  timestamp: number;
+  content: T;
 }
 
 /**
- * Generic structure for processing python object metadata.
+ * Type guard to ensure data integrity
  */
-export interface PythonMetadata {
-  readonly name: string;
-  readonly version: string;
-  readonly dependencies: ReadonlyArray<string>;
+export function isDataPayload(input: unknown): input is DataPayload {
+  return (
+    typeof input === 'object' &&
+    input !== null &&
+    'id' in input &&
+    'timestamp' in input &&
+    'content' in input
+  );
 }
 
 /**
- * Result wrapper for utility function operations.
+ * Configuration for data transformation pipeline
+ */
+export type TransformOptions = {
+  stripNulls?: boolean;
+  recursive?: boolean;
+};
+
+/**
+ * Generic result wrapper for utility operations
  */
 export interface OperationResult<T> {
-  readonly success: boolean;
-  readonly data: T | null;
-  readonly error: string | null;
+  success: boolean;
+  data?: T;
+  error?: string;
 }
 
 /**
- * Type alias for path operations across platforms.
+ * Deeply clean object properties
  */
-export type FilePath = string;
-
-/**
- * Mapping of configuration keys to typed values.
- */
-export type ConfigMap = Map<string, string | number | boolean>;
+export const sanitizeObject = <T extends Record<string, any>>(obj: T): Partial<T> => {
+  const result = { ...obj };
+  for (const key in result) {
+    if (result[key] === null || result[key] === undefined) {
+      delete result[key];
+    }
+  }
+  return result;
+};
