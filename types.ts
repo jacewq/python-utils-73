@@ -1,51 +1,42 @@
 /**
- * Core interface for sanitized data structures
+ * Core interface definitions for python-utils-73
  */
-export interface DataPayload<T = unknown> {
+
+export interface PythonProcessConfig {
+  executablePath: string;
+  workingDirectory: string;
+  timeoutMs?: number;
+  env?: Record<string, string>;
+}
+
+export interface ExecutionResult {
+  stdout: string;
+  stderr: string;
+  exitCode: number | null;
+  durationMs: number;
+}
+
+export interface UtilityTask {
   id: string;
-  timestamp: number;
-  content: T;
+  scriptName: string;
+  args: string[];
+  retryCount: number;
 }
 
-/**
- * Type guard to ensure data integrity
- */
-export function isDataPayload(input: unknown): input is DataPayload {
-  return (
-    typeof input === 'object' &&
-    input !== null &&
-    'id' in input &&
-    'timestamp' in input &&
-    'content' in input
-  );
+export type LoggerLevel = 'debug' | 'info' | 'warn' | 'error';
+
+export interface LogEntry {
+  timestamp: Date;
+  level: LoggerLevel;
+  message: string;
+  metadata?: Record<string, unknown>;
 }
 
-/**
- * Configuration for data transformation pipeline
- */
-export type TransformOptions = {
-  stripNulls?: boolean;
-  recursive?: boolean;
-};
+export const DEFAULT_TIMEOUT = 30000;
 
-/**
- * Generic result wrapper for utility operations
- */
-export interface OperationResult<T> {
-  success: boolean;
-  data?: T;
-  error?: string;
+export enum TaskStatus {
+  PENDING = 'pending',
+  RUNNING = 'running',
+  COMPLETED = 'completed',
+  FAILED = 'failed'
 }
-
-/**
- * Deeply clean object properties
- */
-export const sanitizeObject = <T extends Record<string, any>>(obj: T): Partial<T> => {
-  const result = { ...obj };
-  for (const key in result) {
-    if (result[key] === null || result[key] === undefined) {
-      delete result[key];
-    }
-  }
-  return result;
-};
