@@ -1,40 +1,45 @@
 /**
- * Flattens a nested object into a single level map.
- * Keys are concatenated using dot notation.
+ * Python-like utility functions for TypeScript
  */
-export function flattenObject(obj: Record<string, any>, prefix = ''): Record<string, any> {
-  return Object.keys(obj).reduce((acc, key) => {
-    const pre = prefix.length ? `${prefix}.` : '';
-    if (typeof obj[key] === 'object' && obj[key] !== null && !Array.isArray(obj[key])) {
-      Object.assign(acc, flattenObject(obj[key], pre + key));
-    } else {
-      acc[pre + key] = obj[key];
-    }
-    return acc;
-  }, {} as Record<string, any>);
+
+export interface RangeOptions {
+  step?: number;
 }
 
 /**
- * Safely parses a JSON string with fallback return.
+ * Generate a sequence of numbers, similar to Python's range()
  */
-export function safeJsonParse<T>(json: string, fallback: T): T {
-  try {
-    return JSON.parse(json);
-  } catch {
-    return fallback;
+export function range(start: number, end?: number, options?: RangeOptions): number[] {
+  const step = options?.step ?? 1;
+  const result: number[] = [];
+
+  const [s, e] = end === undefined ? [0, start] : [start, end];
+
+  for (let i = s; i < e; i += step) {
+    result.push(i);
   }
+
+  return result;
 }
 
 /**
- * Groups an array of objects by a specific property.
+ * Returns a shallow copy of an array with items chunked into smaller arrays
  */
-export function groupBy<T>(array: T[], key: keyof T): Record<string, T[]> {
-  return array.reduce((acc, item) => {
-    const group = String(item[key]);
-    if (!acc[group]) {
-      acc[group] = [];
-    }
-    acc[group].push(item);
-    return acc;
-  }, {} as Record<string, T[]>);
+export function chunk<T>(array: T[], size: number): T[][] {
+  if (size <= 0) return [array];
+  
+  const chunks: T[][] = [];
+  for (let i = 0; i < array.length; i += size) {
+    chunks.push(array.slice(i, i + size));
+  }
+  
+  return chunks;
+}
+
+/**
+ * Capitalize the first letter of a string
+ */
+export function capitalize(str: string): string {
+  if (!str) return str;
+  return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
 }
