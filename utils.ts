@@ -1,51 +1,39 @@
 /**
- * Utility functions for python-utils-73
+ * Memoization cache for heavy computational tasks
+ * Reduces redundant calculations in data processing pipelines
  */
+const cache = new Map<string, any>();
 
-export interface ProcessResult {
-  success: boolean;
-  data: string | null;
-  error: string | null;
-}
-
-/**
- * Sanitizes input strings to match Python utility requirements
- * @param input raw input string from source
- * @returns sanitized string with whitespaces trimmed
- */
-export function sanitizeInput(input: string): string {
-  return input.trim().replace(/\s+/g, ' ');
-}
-
-/**
- * Orchestrates command execution wrappers for python sub-processes
- * @param cmd python command string to execute
- * @returns ProcessResult object containing status
- */
-export function runPythonProcess(cmd: string): ProcessResult {
-  try {
-    if (!cmd.startsWith('python')) {
-      throw new Error('Invalid python command prefix');
+export function memoizedProcess<T, R>(fn: (arg: T) => R, key: string): (arg: T) => R {
+  return (arg: T): R => {
+    if (cache.has(key)) {
+      return cache.get(key);
     }
-    return {
-      success: true,
-      data: `Executed: ${cmd}`,
-      error: null
-    };
-  } catch (err: unknown) {
-    return {
-      success: false,
-      data: null,
-      error: err instanceof Error ? err.message : 'Unknown execution failure'
-    };
-  }
+    const result = fn(arg);
+    cache.set(key, result);
+    return result;
+  };
 }
 
 /**
- * Formats environment variables into standard Python args
- * @param vars mapping of environment keys
- * @returns array of CLI flags
+ * Bulk processing utility with chunking support
+ * Prevents event loop blocking during large list iterations
  */
-export function formatArgs(vars: Record<string, string>): string[] {
-  return Object.entries(vars).map(([key, val]) => `--${key}=${val}`);
+export async function processInChunks<T, R>(
+  items: T[],
+  processFn: (item: T) => R,
+  chunkSize: number = 100
+): Promise<R[]> {
+  const results: R[] = [];
+  for (let i = 0; i < items.length; i += chunkSize) {
+    const chunk = items.slice(i, i + chunkSize);
+    results.push(...chunk.map(processFn));
+    // Yield to event loop to maintain responsiveness
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  }
+  return results;
 }
+
+export const clearCache = (): void => {
+  cache.clear();
+};
