@@ -1,43 +1,51 @@
 # python-utils-73
 
-A robust collection of TypeScript utility functions designed to bridge the gap between common Python idioms and modern JavaScript development. This library streamlines data manipulation and object handling with type-safe, production-ready helpers.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+`python-utils-73` brings Python's most ergonomic standard library utilities and built-in functions directly into modern TypeScript environments. It offers type-safe, zero-dependency implementations of Python-style iterators, collection primitives, and string manipulators for Node.js and browser runtimes.
 
 ## Features
 
-*   **Type-Safe Object Traversal:** Safely access deeply nested object properties using string paths, preventing `undefined` reference errors.
-*   **Enhanced Array Utilities:** Built-in Python-inspired methods such as `chunk`, `flatten`, and `range` for more expressive data processing.
-*   **Time-Delta Formatting:** Simplified date manipulation tools to calculate relative time differences and format human-readable durations.
-*   **Deep Equality Comparison:** Reliable utility for comparing complex nested objects and arrays without external dependencies.
+- **Pythonic Iterators:** Lazy-evaluation generators including `range()`, `zip()`, `enumerate()`, and `chunk()` designed for clean iteration pipelines.
+- **Rich Collections:** Fully typed equivalents of Python's `Counter`, `defaultdict`, and double-ended queue (`deque`).
+- **String Utilities:** Native-feeling string methods like `strip()`, `zfill()`, `partition()`, and `title()` with strict type signatures.
+- **Zero Dependencies:** Ultra-lightweight codebase built entirely in TypeScript with full ESM and CommonJS support.
 
 ## Installation
 
-Install the package via npm or yarn:
+Install via your preferred package manager:
 
 ```bash
 npm install python-utils-73
-# or
+```
+
+```bash
+pnpm add python-utils-73
+```
+
+```bash
 yarn add python-utils-73
 ```
 
-## Basic Usage
-
-Import the utilities directly into your TypeScript files to leverage strict type inference:
+## Quick Start
 
 ```typescript
-import { range, getByPath } from 'python-utils-73';
+import { range, zip, Counter, defaultdict } from 'python-utils-73';
 
-// Generate a sequence of numbers
-const sequence = range(0, 10, 2); // [0, 2, 4, 6, 8]
+// 1. Lazy iteration with range and zip
+const indices = range(1, 5);
+const labels = ['alpha', 'beta', 'gamma', 'delta'];
 
-// Access deep properties safely
-const user = { profile: { settings: { theme: 'dark' } } };
-const theme = getByPath(user, 'profile.settings.theme'); 
+for (const [index, label] of zip(indices, labels)) {
+  console.log(`${index}: ${label}`);
+}
+// Output: "1: alpha", "2: beta", "3: gamma", "4: delta"
 
-console.log(theme); // 'dark'
-```
+// 2. Frequency counting with Counter
+const tally = new Counter(['apple', 'banana', 'apple', 'orange', 'apple']);
+console.log(tally.mostCommon(1)); 
+// Output: [['apple', 3]]
 
-## License
-
-![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
-
-Distributed under the MIT License. See `LICENSE` for more information.
+// 3. Auto-initializing maps with defaultdict
+const grouped = new defaultdict<string, number[]>(() => []);
+grouped.get('scores').push
