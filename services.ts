@@ -1,38 +1,39 @@
 export interface PythonProcessResult {
-  exitCode: number;
   stdout: string;
   stderr: string;
+  exitCode: number;
 }
 
-/**
- * Orchestrates python script execution with basic result handling
- */
-export class PythonExecutionService {
-  private readonly binPath: string;
+export const executeScript = async (path: string, args: string[] = []): Promise<PythonProcessResult> => {
+  const { spawn } = await import('node:child_process');
 
-  constructor(binPath: string = 'python3') {
-    this.binPath = binPath;
+  return new Promise((resolve, reject) => {
+    const process = spawn('python3', [path, ...args]);
+    let stdout = '';
+    let stderr = '';
+
+    process.stdout.on('data', (data) => { stdout += data; });
+    process.stderr.on('data', (data) => { stderr += data; });
+
+    process.on('close', (code) => {
+      resolve({ stdout, stderr, exitCode: code || 0 });
+    });
+
+    process.on('error', (err) => {
+      reject(err);
+    });
+  });
+};
+
+export const formatPath = (path: string): string => {
+  return path.trim().replace(/^['"]|['"]$/g, '');
+};
+
+export const validatePythonEnv = async (): Promise<boolean> => {
+  try {
+    const result = await executeScript('-c', ['import sys; print(sys.version)']);
+    return result.exitCode === 0;
+  } catch {
+    return false;
   }
-
-  public formatCommand(scriptPath: string, args: string[] = []): string[] {
-    return [this.binPath, scriptPath, ...args];
-  }
-
-  public validateEnvironment(result: PythonProcessResult): void {
-    if (result.exitCode !== 0) {
-      throw new Error(`Python execution failed: ${result.stderr}`);
-    }
-  }
-
-  public parseOutput(stdout: string): Record<string, any> {
-    try {
-      return JSON.parse(stdout);
-    } catch (e) {
-      return { raw: stdout };
-    }
-  }
-}
-
-export const createService = (path?: string): PythonExecutionService => {
-  return new PythonExecutionService(path);
 };
