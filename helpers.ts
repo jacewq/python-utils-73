@@ -1,45 +1,43 @@
 /**
- * Python-like utility functions for TypeScript
+ * Utility functions for data transformation and validation
  */
 
-export interface RangeOptions {
-  step?: number;
+export type Nullable<T> = T | null | undefined;
+
+/**
+ * Safely extracts a value from a nested object structure
+ */
+export function getNestedValue<T = any>(obj: any, path: string): Nullable<T> {
+  return path.split('.').reduce((acc, part) => acc && acc[part], obj);
 }
 
 /**
- * Generate a sequence of numbers, similar to Python's range()
+ * Transforms an array of objects into a Map based on a key
  */
-export function range(start: number, end?: number, options?: RangeOptions): number[] {
-  const step = options?.step ?? 1;
-  const result: number[] = [];
-
-  const [s, e] = end === undefined ? [0, start] : [start, end];
-
-  for (let i = s; i < e; i += step) {
-    result.push(i);
+export function arrayToMap<T, K extends keyof T>(arr: T[], key: K): Map<T[K], T> {
+  const map = new Map<T[K], T>();
+  for (const item of arr) {
+    map.set(item[key], item);
   }
+  return map;
+}
 
+/**
+ * Deep cleans an object by removing undefined properties
+ */
+export function cleanObject<T extends Record<string, any>>(obj: T): Partial<T> {
+  const result = { ...obj };
+  Object.keys(result).forEach((key) => {
+    if (result[key] === undefined) {
+      delete result[key];
+    }
+  });
   return result;
 }
 
 /**
- * Returns a shallow copy of an array with items chunked into smaller arrays
+ * Generates a consistent hash string for primitive values
  */
-export function chunk<T>(array: T[], size: number): T[][] {
-  if (size <= 0) return [array];
-  
-  const chunks: T[][] = [];
-  for (let i = 0; i < array.length; i += size) {
-    chunks.push(array.slice(i, i + size));
-  }
-  
-  return chunks;
-}
-
-/**
- * Capitalize the first letter of a string
- */
-export function capitalize(str: string): string {
-  if (!str) return str;
-  return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+export function generateId(prefix: string = 'utils'): string {
+  return `${prefix}_${Math.random().toString(36).substring(2, 9)}`;
 }
