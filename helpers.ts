@@ -1,43 +1,39 @@
-/**
- * Utility functions for data transformation and validation
- */
-
-export type Nullable<T> = T | null | undefined;
-
-/**
- * Safely extracts a value from a nested object structure
- */
-export function getNestedValue<T = any>(obj: any, path: string): Nullable<T> {
-  return path.split('.').reduce((acc, part) => acc && acc[part], obj);
+export interface ProcessedInput {
+  value: string;
+  timestamp: number;
 }
 
 /**
- * Transforms an array of objects into a Map based on a key
+ * validates input structure for processing loop
  */
-export function arrayToMap<T, K extends keyof T>(arr: T[], key: K): Map<T[K], T> {
-  const map = new Map<T[K], T>();
-  for (const item of arr) {
-    map.set(item[key], item);
+export function validateInput(input: unknown): input is ProcessedInput {
+  if (typeof input !== 'object' || input === null) {
+    return false;
   }
-  return map;
+
+  const candidate = input as Record<string, unknown>;
+
+  return (
+    typeof candidate.value === 'string' &&
+    candidate.value.length > 0 &&
+    typeof candidate.timestamp === 'number' &&
+    !isNaN(candidate.timestamp)
+  );
 }
 
 /**
- * Deep cleans an object by removing undefined properties
+ * sanitized handler for processing batch items
  */
-export function cleanObject<T extends Record<string, any>>(obj: T): Partial<T> {
-  const result = { ...obj };
-  Object.keys(result).forEach((key) => {
-    if (result[key] === undefined) {
-      delete result[key];
+export function processLoop(items: unknown[]): ProcessedInput[] {
+  const validItems: ProcessedInput[] = [];
+
+  for (const item of items) {
+    if (validateInput(item)) {
+      validItems.push(item);
+    } else {
+      console.warn('skipping malformed input item', item);
     }
-  });
-  return result;
-}
+  }
 
-/**
- * Generates a consistent hash string for primitive values
- */
-export function generateId(prefix: string = 'utils'): string {
-  return `${prefix}_${Math.random().toString(36).substring(2, 9)}`;
+  return validItems;
 }
