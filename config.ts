@@ -1,29 +1,44 @@
-import { readFileSync } from 'fs';
-
-export interface AppConfig {
-  port: number;
-  host: string;
-  timeout: number;
+export interface PythonUtilsConfig {
+  pythonPath: string;
+  timeoutMs: number;
+  maxBufferMB: number;
+  environment: Record<string, string>;
+  debug: boolean;
 }
 
-const defaults: AppConfig = {
-  port: 8080,
-  host: 'localhost',
-  timeout: 5000
-};
+export const DEFAULT_CONFIG: Readonly<PythonUtilsConfig> = Object.freeze({
+  pythonPath: 'python3',
+  timeoutMs: 30000,
+  maxBufferMB: 10,
+  environment: {},
+  debug: false,
+});
 
 /**
- * Loads configuration from a JSON file, merging with defaults.
+ * Merges user-provided configuration with default settings.
+ * Ensures types and fallback values are applied correctly.
  */
-export function loadConfig(path?: string): AppConfig {
-  if (!path) return { ...defaults };
-
-  try {
-    const fileContent = readFileSync(path, 'utf-8');
-    const userConfig = JSON.parse(fileContent);
-    return { ...defaults, ...userConfig };
-  } catch (err) {
-    console.error('Failed to load config, falling back to defaults');
-    return { ...defaults };
+export function loadConfig(userConfig?: Partial<PythonUtilsConfig>): PythonUtilsConfig {
+  if (!userConfig) {
+    return { ...DEFAULT_CONFIG, environment: { ...DEFAULT_CONFIG.environment } };
   }
+
+  return {
+    pythonPath: typeof userConfig.pythonPath === 'string' && userConfig.pythonPath.trim() !== ''
+      ? userConfig.pythonPath
+      : DEFAULT_CONFIG.pythonPath,
+    timeoutMs: typeof userConfig.timeoutMs === 'number' && userConfig.timeoutMs > 0
+      ? userConfig.timeoutMs
+      : DEFAULT_CONFIG.timeoutMs,
+    maxBufferMB: typeof userConfig.maxBufferMB === 'number' && userConfig.maxBufferMB > 0
+      ? userConfig.maxBufferMB
+      : DEFAULT_CONFIG.maxBufferMB,
+    environment: {
+      ...DEFAULT_CONFIG.environment,
+      ...(userConfig.environment || {}),
+    },
+    debug: typeof userConfig.debug === 'boolean'
+      ? userConfig.debug
+      : DEFAULT_CONFIG.debug,
+  };
 }
