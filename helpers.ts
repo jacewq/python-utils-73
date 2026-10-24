@@ -1,64 +1,65 @@
-/**
- * String conversion helpers with memoized lookup caches for high-throughput
- * naming convention transformations (e.g., camelCase <-> snake_case).
- */
+import * as fs from 'fs';
+import * as path from 'path';
 
-const MAX_CACHE_SIZE = 1000;
-const snakeCache = new Map<string, string>();
-const camelCache = new Map<string, string>();
+export type LogLevel = 'DEBUG' | 'INFO' | 'WARN' | 'ERROR';
 
-/**
- * Helper to enforce LRU-like eviction on simple Map caches.
- */
-function setCached(cache: Map<string, string>, key: string, value: string): void {
-  if (cache.size >= MAX_CACHE_SIZE) {
-    const firstKey = cache.keys().next().value;
-    if (firstKey !== undefined) {
-      cache.delete(firstKey);
+export interface LoggerConfig {
+  logDir: string;
+  filename: string;
+  maxSizeBytes: number;
+  maxFiles: number;
+  minLevel?: LogLevel;
+}
+
+const LOG_LEVELS: Record<LogLevel, number> = {
+  DEBUG: 10,
+  INFO: 20,
+  WARN: 30,
+  ERROR: 40,
+};
+
+export class RotatingLogger {
+  private config: Required<LoggerConfig>;
+  private filePath: string;
+
+  constructor(config: LoggerConfig) {
+    this.config = { minLevel: 'INFO', ...config };
+    this.filePath = path.join(this.config.logDir, this.config.filename);
+    if (!fs.existsSync(this.config.logDir)) {
+      fs.mkdirSync(this.config.logDir, { recursive: true });
     }
   }
-  cache.set(key, value);
-}
 
-/**
- * Converts camelCase or PascalCase strings to snake_case with caching.
- */
-export function toSnakeCase(str: string): string {
-  const cached = snakeCache.get(str);
-  if (cached !== undefined) {
-    return cached;
+  private rotateIfNeeded(): void {
+    if (!fs.existsSync(this.filePath)) return;
+    const stats = fs.statSync(this.filePath);
+    if (stats.size < this.config.maxSizeBytes) return;
+
+    for (let i = this.config.maxFiles - 1; i >= 1; i--) {
+      const src = `${this.filePath}.${i}`;
+      const dest = `${this.filePath}.${i + 1}`;
+      if (fs.existsSync(src)) {
+        if (i + 1 > this.config.maxFiles) {
+          fs.unlinkSync(src);
+        } else {
+          fs.renameSync(src, dest);
+        }
+      }
+    }
+    fs.renameSync(this.filePath, `${this.filePath}.1`);
   }
 
-  const result = str
-    .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
-    .replace(/([A-Z]+)([A-Z][a-z])/g, '$1_$2')
-    .toLowerCase();
+  public log(level: LogLevel, message: string): void {
+    if (LOG_LEVELS[level] < LOG_LEVELS[this.config.minLevel]) return;
 
-  setCached(snakeCache, str, result);
-  return result;
-}
-
-/**
- * Converts snake_case strings to camelCase with caching.
- */
-export function toCamelCase(str: string): string {
-  const cached = camelCache.get(str);
-  if (cached !== undefined) {
-    return cached;
+    this.rotateIfNeeded();
+    const timestamp = new Date().toISOString();
+    const line = `[${timestamp}] [${level}] ${message}\n`;
+    fs.appendFileSync(this.filePath, line, 'utf-8');
   }
 
-  const result = str
-    .toLowerCase()
-    .replace(/_([a-z0-9])/g, (_, char) => char.toUpperCase());
-
-  setCached(camelCache, str, result);
-  return result;
-}
-
-/**
- * Clears internal transformation caches to free memory.
- */
-export function clearHelperCaches(): void {
-  snakeCache.clear();
-  camelCache.clear();
+  public info(msg: string): void { this.log('INFO', msg); }
+  public warn(msg: string): void { this.log('WARN', msg); }
+  public error(msg: string): void { this.log('ERROR', msg); }
+  public debug(msg: string): void { this.log('DEBUG', msg); }
 }
