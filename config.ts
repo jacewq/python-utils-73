@@ -1,57 +1,46 @@
-export interface PythonUtilsConfig {
-  logLevel: 'DEBUG' | 'INFO' | 'WARNING' | 'ERROR';
-  maxWorkers: number;
+export interface ProcessingConfig {
+  maxRetries: number;
   timeoutMs: number;
-  retryAttempts: number;
-  cacheDir: string;
-  enableAsync: boolean;
+  inputSchema: string[];
 }
 
-export const DEFAULT_CONFIG: PythonUtilsConfig = {
-  logLevel: 'INFO',
-  maxWorkers: 4,
-  timeoutMs: 30000,
-  retryAttempts: 3,
-  cacheDir: '.py_cache',
-  enableAsync: true,
+/**
+ * Validates the input dictionary against the current config schema.
+ * Returns true if all keys are present and valid.
+ */
+export function validateInput(data: Record<string, any>, config: ProcessingConfig): boolean {
+  if (!data || typeof data !== 'object') {
+    return false;
+  }
+
+  for (const requiredKey of config.inputSchema) {
+    if (!(requiredKey in data) || data[requiredKey] === undefined || data[requiredKey] === null) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+export const defaultConfig: ProcessingConfig = {
+  maxRetries: 3,
+  timeoutMs: 5000,
+  inputSchema: ['projectId', 'payload', 'timestamp']
 };
 
 /**
- * Loads and merges runtime configurations with standard defaults.
+ * Main processing loop simulation with integrated validation.
  */
-export class ConfigLoader {
-  private config: PythonUtilsConfig;
+export function processBatch(items: any[], config: ProcessingConfig): any[] {
+  const results: any[] = [];
 
-  constructor(overrides: Partial<PythonUtilsConfig> = {}) {
-    this.config = this.mergeConfig(overrides);
-  }
-
-  private mergeConfig(overrides: Partial<PythonUtilsConfig>): PythonUtilsConfig {
-    const merged = { ...DEFAULT_CONFIG, ...overrides };
-
-    if (merged.maxWorkers <= 0) {
-      merged.maxWorkers = DEFAULT_CONFIG.maxWorkers;
+  for (const item of items) {
+    if (validateInput(item, config)) {
+      results.push({ status: 'success', data: item });
+    } else {
+      results.push({ status: 'error', reason: 'validation failed' });
     }
-    if (merged.timeoutMs < 0) {
-      merged.timeoutMs = DEFAULT_CONFIG.timeoutMs;
-    }
-    if (merged.retryAttempts < 0) {
-      merged.retryAttempts = 0;
-    }
-
-    return merged;
   }
 
-  public get<K extends keyof PythonUtilsConfig>(key: K): PythonUtilsConfig[K] {
-    return this.config[key];
-  }
-
-  public getAll(): Readonly<PythonUtilsConfig> {
-    return Object.freeze({ ...this.config });
-  }
-
-  public update(overrides: Partial<PythonUtilsConfig>): PythonUtilsConfig {
-    this.config = this.mergeConfig({ ...this.config, ...overrides });
-    return this.getAll();
-  }
+  return results;
 }
