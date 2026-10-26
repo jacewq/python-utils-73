@@ -1,42 +1,54 @@
 /**
- * Python-style utility helpers for TypeScript
+ * Optimized utility collection for python-utils-73
  */
 
+export type MemoizedFunction<T extends any[], R> = (...args: T) => R;
+
 /**
- * Returns a range of numbers similar to Python's range()
+ * LRU-style cache implementation for high-frequency operations
  */
-export function range(start: number, stop?: number, step: number = 1): number[] {
-  if (stop === undefined) {
-    stop = start;
-    start = 0;
+export function memoize<T extends any[], R>(fn: (...args: T) => R): MemoizedFunction<T, R> {
+  const cache = new Map<string, R>();
+
+  return (...args: T): R => {
+    const key = JSON.stringify(args);
+    if (cache.has(key)) {
+      return cache.get(key)!;
+    }
+
+    const result = fn(...args);
+    cache.set(key, result);
+
+    // Prevent memory leaks for long-running processes
+    if (cache.size > 1000) {
+      const firstKey = cache.keys().next().value;
+      cache.delete(firstKey);
+    }
+
+    return result;
+  };
+}
+
+/**
+ * Batched execution to minimize event loop blocking
+ */
+export async function batchProcess<T, R>(
+  items: T[],
+  processor: (item: T) => Promise<R>,
+  concurrency: number = 5
+): Promise<R[]> {
+  const results: R[] = [];
+  for (let i = 0; i < items.length; i += concurrency) {
+    const chunk = items.slice(i, i + concurrency);
+    const batch = await Promise.all(chunk.map(processor));
+    results.push(...batch);
   }
-  const result: number[] = [];
-  for (let i = start; step > 0 ? i < stop : i > stop; i += step) {
-    result.push(i);
-  }
-  return result;
+  return results;
 }
 
 /**
- * Creates an array of elements split into groups the length of size
+ * Efficient data transformation helper
  */
-export function chunk<T>(array: T[], size: number): T[][] {
-  return Array.from({ length: Math.ceil(array.length / size) }, (_, i) =>
-    array.slice(i * size, i * size + size)
-  );
-}
-
-/**
- * Safely accesses a nested object property
- */
-export function get<T>(obj: any, path: string[], defaultValue?: T): T {
-  return path.reduce((acc, key) => (acc && acc[key] !== undefined ? acc[key] : defaultValue), obj);
-}
-
-/**
- * Flattens nested arrays
- */
-export function flatten<T>(array: any[]): T[] {
-  return array.reduce((acc, val) => 
-    Array.isArray(val) ? acc.concat(flatten(val)) : acc.concat(val), []);
-}
+export const deepClone = <T>(obj: T): T => {
+  return JSON.parse(JSON.stringify(obj));
+};
