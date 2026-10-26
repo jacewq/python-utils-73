@@ -1,28 +1,42 @@
-export interface RetryOptions {
-  maxAttempts: number;
-  delayMs: number;
+/**
+ * Python-style utility helpers for TypeScript
+ */
+
+/**
+ * Returns a range of numbers similar to Python's range()
+ */
+export function range(start: number, stop?: number, step: number = 1): number[] {
+  if (stop === undefined) {
+    stop = start;
+    start = 0;
+  }
+  const result: number[] = [];
+  for (let i = start; step > 0 ? i < stop : i > stop; i += step) {
+    result.push(i);
+  }
+  return result;
 }
 
 /**
- * Executes a function with simple exponential backoff for network operations
+ * Creates an array of elements split into groups the length of size
  */
-export async function withRetry<T>(
-  fn: () => Promise<T>,
-  options: RetryOptions = { maxAttempts: 3, delayMs: 1000 }
-): Promise<T> {
-  let lastError: unknown;
+export function chunk<T>(array: T[], size: number): T[][] {
+  return Array.from({ length: Math.ceil(array.length / size) }, (_, i) =>
+    array.slice(i * size, i * size + size)
+  );
+}
 
-  for (let attempt = 1; attempt <= options.maxAttempts; attempt++) {
-    try {
-      return await fn();
-    } catch (err) {
-      lastError = err;
-      if (attempt === options.maxAttempts) break;
-      
-      const backoff = options.delayMs * Math.pow(2, attempt - 1);
-      await new Promise((resolve) => setTimeout(resolve, backoff));
-    }
-  }
+/**
+ * Safely accesses a nested object property
+ */
+export function get<T>(obj: any, path: string[], defaultValue?: T): T {
+  return path.reduce((acc, key) => (acc && acc[key] !== undefined ? acc[key] : defaultValue), obj);
+}
 
-  throw lastError;
+/**
+ * Flattens nested arrays
+ */
+export function flatten<T>(array: any[]): T[] {
+  return array.reduce((acc, val) => 
+    Array.isArray(val) ? acc.concat(flatten(val)) : acc.concat(val), []);
 }
