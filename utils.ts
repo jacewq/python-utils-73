@@ -1,54 +1,48 @@
 /**
- * Optimized utility collection for python-utils-73
+ * Utility functions for common data manipulation tasks
+ * within the python-utils-73 ecosystem.
  */
 
-export type MemoizedFunction<T extends any[], R> = (...args: T) => R;
+export type AnyObject = Record<string, unknown>;
 
 /**
- * LRU-style cache implementation for high-frequency operations
+ * Deeply cleans an object by removing undefined and null values
  */
-export function memoize<T extends any[], R>(fn: (...args: T) => R): MemoizedFunction<T, R> {
-  const cache = new Map<string, R>();
+export function cleanObject<T extends AnyObject>(obj: T): Partial<T> {
+  const result = { ...obj };
 
-  return (...args: T): R => {
-    const key = JSON.stringify(args);
-    if (cache.has(key)) {
-      return cache.get(key)!;
+  for (const key in result) {
+    if (result[key] === undefined || result[key] === null) {
+      delete result[key];
+    } else if (typeof result[key] === 'object' && !Array.isArray(result[key])) {
+      result[key] = cleanObject(result[key] as AnyObject) as T[Extract<keyof T, string>];
     }
-
-    const result = fn(...args);
-    cache.set(key, result);
-
-    // Prevent memory leaks for long-running processes
-    if (cache.size > 1000) {
-      const firstKey = cache.keys().next().value;
-      cache.delete(firstKey);
-    }
-
-    return result;
-  };
-}
-
-/**
- * Batched execution to minimize event loop blocking
- */
-export async function batchProcess<T, R>(
-  items: T[],
-  processor: (item: T) => Promise<R>,
-  concurrency: number = 5
-): Promise<R[]> {
-  const results: R[] = [];
-  for (let i = 0; i < items.length; i += concurrency) {
-    const chunk = items.slice(i, i + concurrency);
-    const batch = await Promise.all(chunk.map(processor));
-    results.push(...batch);
   }
-  return results;
+
+  return result;
 }
 
 /**
- * Efficient data transformation helper
+ * Transforms an array of objects into a map based on a key
  */
-export const deepClone = <T>(obj: T): T => {
-  return JSON.parse(JSON.stringify(obj));
-};
+export function keyBy<T extends AnyObject, K extends keyof T>(
+  collection: T[],
+  key: K
+): Record<string, T> {
+  return collection.reduce((acc, item) => {
+    const keyValue = String(item[key]);
+    acc[keyValue] = item;
+    return acc;
+  }, {} as Record<string, T>);
+}
+
+/**
+ * Safely parses a JSON string with a fallback value
+ */
+export function safeJsonParse<T>(json: string, fallback: T): T {
+  try {
+    return JSON.parse(json) as T;
+  } catch {
+    return fallback;
+  }
+}
