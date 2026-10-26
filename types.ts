@@ -1,42 +1,40 @@
-/**
- * Core interface definitions for python-utils-73
- */
-
-export interface PythonProcessConfig {
-  executablePath: string;
-  workingDirectory: string;
-  timeoutMs?: number;
-  env?: Record<string, string>;
-}
-
-export interface ExecutionResult {
-  stdout: string;
-  stderr: string;
-  exitCode: number | null;
-  durationMs: number;
-}
-
-export interface UtilityTask {
+export interface ProcessedInput {
   id: string;
-  scriptName: string;
-  args: string[];
-  retryCount: number;
+  value: number;
+  timestamp: number;
 }
 
-export type LoggerLevel = 'debug' | 'info' | 'warn' | 'error';
+export const validateInput = (data: unknown): data is ProcessedInput => {
+  if (typeof data !== 'object' || data === null) return false;
+  const d = data as Record<string, unknown>;
 
-export interface LogEntry {
-  timestamp: Date;
-  level: LoggerLevel;
+  const isIdValid = typeof d.id === 'string' && d.id.length > 0;
+  const isValueValid = typeof d.value === 'number' && Number.isFinite(d.value);
+  const isTimestampValid = typeof d.timestamp === 'number';
+
+  return isIdValid && isValueValid && isTimestampValid;
+};
+
+export const processMainLoop = (items: unknown[]): ProcessedInput[] => {
+  const results: ProcessedInput[] = [];
+
+  for (const item of items) {
+    if (validateInput(item)) {
+      results.push(item);
+    } else {
+      console.warn('Invalid input format detected, skipping item:', item);
+    }
+  }
+
+  return results;
+};
+
+export type ProcessingError = {
+  code: string;
   message: string;
-  metadata?: Record<string, unknown>;
-}
+};
 
-export const DEFAULT_TIMEOUT = 30000;
-
-export enum TaskStatus {
-  PENDING = 'pending',
-  RUNNING = 'running',
-  COMPLETED = 'completed',
-  FAILED = 'failed'
-}
+export const createError = (code: string, message: string): ProcessingError => ({
+  code,
+  message
+});
