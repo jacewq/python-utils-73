@@ -1,45 +1,56 @@
-/**
- * Utility functions for handling and sanitizing data sets
- */
+export interface CacheOptions {
+  ttlMs?: number;
+  maxSize?: number;
+}
 
-export type Nullable<T> = T | null | undefined;
+interface CacheEntry<T> {
+  value: T;
+  timestamp: number;
+}
 
-/**
- * Deeply removes null or undefined values from an object
- */
-export function sanitizeObject<T extends Record<string, any>>(obj: T): Partial<T> {
-  const result = { ...obj };
+export class MemoizedService<TArgs extends any[], TResult> {
+  private cache = new Map<string, CacheEntry<TResult>>();
+  private readonly ttlMs: number;
+  private readonly maxSize: number;
 
-  for (const key in result) {
-    if (result[key] === null || result[key] === undefined) {
-      delete result[key];
-    } else if (typeof result[key] === 'object' && !Array.isArray(result[key])) {
-      result[key] = sanitizeObject(result[key]) as any;
+  constructor(
+    private readonly fn: (...args: TArgs) => TResult,
+    options: CacheOptions = {}
+  ) {
+    this.ttlMs = options.ttlMs ?? 60000;
+    this.maxSize = options.maxSize ?? 1000;
+  }
+
+  private generateKey(args: TArgs): string {
+    return JSON.stringify(args);
+  }
+
+  public execute(...args: TArgs): TResult {
+    const key = this.generateKey(args);
+    const now = Date.now();
+    const cached = this.cache.get(key);
+
+    if (cached && now - cached.timestamp < this.ttlMs) {
+      return cached.value;
     }
+
+    if (this.cache.size >= this.maxSize) {
+      const oldestKey = this.cache.keys().next().value;
+      if (oldestKey !== undefined) {
+        this.cache.delete(oldestKey);
+      }
+    }
+
+    const result = this.fn(...args);
+    this.cache.set(key, { value: result, timestamp: now });
+    return result;
   }
 
-  return result;
-}
-
-/**
- * Safely parses JSON strings with a default fallback
- */
-export function safeJsonParse<T>(data: string, fallback: T): T {
-  try {
-    return JSON.parse(data) as T;
-  } catch (err) {
-    console.error('Failed to parse JSON, returning fallback', err);
-    return fallback;
+  public clearCache(): void {
+    this.cache.clear();
   }
-}
 
-/**
- * Batches an array into smaller chunks
- */
-export function chunkArray<T>(array: T[], size: number): T[][] {
-  const chunks: T[][] = [];
-  for (let i = 0; i < array.length; i += size) {
-    chunks.push(array.slice(i, i + size));
+  public get size(): number {
+    return this.cache.size;
   }
-  return chunks;
 }
