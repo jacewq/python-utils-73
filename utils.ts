@@ -1,48 +1,40 @@
+export class PythonUtilsError extends Error {
+  constructor(public message: string, public code: string) {
+    super(message);
+    this.name = 'PythonUtilsError';
+  }
+}
+
 /**
- * Utility functions for common data manipulation tasks
- * within the python-utils-73 ecosystem.
+ * Safely parses input for python-utils-73 operations
  */
-
-export type AnyObject = Record<string, unknown>;
-
-/**
- * Deeply cleans an object by removing undefined and null values
- */
-export function cleanObject<T extends AnyObject>(obj: T): Partial<T> {
-  const result = { ...obj };
-
-  for (const key in result) {
-    if (result[key] === undefined || result[key] === null) {
-      delete result[key];
-    } else if (typeof result[key] === 'object' && !Array.isArray(result[key])) {
-      result[key] = cleanObject(result[key] as AnyObject) as T[Extract<keyof T, string>];
-    }
+export function validateInput(input: unknown): string {
+  if (input === null || input === undefined) {
+    throw new PythonUtilsError('input cannot be null or undefined', 'ERR_EMPTY_INPUT');
   }
 
-  return result;
+  const stringified = String(input).trim();
+
+  if (stringified.length === 0) {
+    throw new PythonUtilsError('input resulted in empty string', 'ERR_BLANK_INPUT');
+  }
+
+  return stringified;
 }
 
 /**
- * Transforms an array of objects into a map based on a key
+ * Executes a function with automatic edge case trapping
  */
-export function keyBy<T extends AnyObject, K extends keyof T>(
-  collection: T[],
-  key: K
-): Record<string, T> {
-  return collection.reduce((acc, item) => {
-    const keyValue = String(item[key]);
-    acc[keyValue] = item;
-    return acc;
-  }, {} as Record<string, T>);
-}
-
-/**
- * Safely parses a JSON string with a fallback value
- */
-export function safeJsonParse<T>(json: string, fallback: T): T {
+export async function safeExecute<T>(fn: () => Promise<T>): Promise<T | null> {
   try {
-    return JSON.parse(json) as T;
-  } catch {
-    return fallback;
+    return await fn();
+  } catch (error) {
+    if (error instanceof PythonUtilsError) {
+      console.error(`[PythonUtils-73] Operational error: ${error.code}`);
+      return null;
+    }
+    
+    console.error('[PythonUtils-73] Unexpected system fault:', error);
+    throw error;
   }
 }
