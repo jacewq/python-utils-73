@@ -1,40 +1,31 @@
-export class PythonUtilsError extends Error {
-  constructor(public message: string, public code: string) {
-    super(message);
-    this.name = 'PythonUtilsError';
-  }
+export interface RetryOptions {
+  maxAttempts: number;
+  backoffMs: number;
 }
 
 /**
- * Safely parses input for python-utils-73 operations
+ * executes an asynchronous task with exponential backoff
  */
-export function validateInput(input: unknown): string {
-  if (input === null || input === undefined) {
-    throw new PythonUtilsError('input cannot be null or undefined', 'ERR_EMPTY_INPUT');
-  }
+export async function withRetry<T>(
+  task: () => Promise<T>,
+  options: RetryOptions = { maxAttempts: 3, backoffMs: 1000 }
+): Promise<T> {
+  let lastError: unknown;
 
-  const stringified = String(input).trim();
+  for (let attempt = 1; attempt <= options.maxAttempts; attempt++) {
+    try {
+      return await task();
+    } catch (err) {
+      lastError = err;
 
-  if (stringified.length === 0) {
-    throw new PythonUtilsError('input resulted in empty string', 'ERR_BLANK_INPUT');
-  }
-
-  return stringified;
-}
-
-/**
- * Executes a function with automatic edge case trapping
- */
-export async function safeExecute<T>(fn: () => Promise<T>): Promise<T | null> {
-  try {
-    return await fn();
-  } catch (error) {
-    if (error instanceof PythonUtilsError) {
-      console.error(`[PythonUtils-73] Operational error: ${error.code}`);
-      return null;
+      if (attempt < options.maxAttempts) {
+        const delay = options.backoffMs * Math.pow(2, attempt - 1);
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      }
     }
-    
-    console.error('[PythonUtils-73] Unexpected system fault:', error);
-    throw error;
   }
+
+  throw lastError instanceof Error 
+    ? lastError 
+    : new Error(`operation failed after ${options.maxAttempts} attempts: ${lastError}`);
 }
