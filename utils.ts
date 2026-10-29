@@ -1,33 +1,72 @@
 /**
- * Utility functions for common python-like operations in TypeScript
+ * Utility functions providing Python-like data manipulation features.
  */
 
-export const range = (start: number, end?: number): number[] => {
-  const s = end === undefined ? 0 : start;
-  const e = end === undefined ? start : end;
-  return Array.from({ length: e - s }, (_, i) => s + i);
-};
+/**
+ * Combines multiple arrays into an array of tuples, stopping at the shortest length.
+ * Matches Python's built-in `zip()` behavior.
+ */
+export function zip<T extends any[]>(
+  ...arrays: { [K in keyof T]: T[K][] }
+): { [K in keyof T]: T[K] }[] {
+  if (arrays.length === 0) {
+    return [];
+  }
 
-export const zip = <T, U>(a: T[], b: U[]): [T, U][] => {
-  const length = Math.min(a.length, b.length);
-  return Array.from({ length }, (_, i) => [a[i], b[i]]);
-};
+  const minLength = Math.min(...arrays.map((arr) => arr.length));
+  const result: { [K in keyof T]: T[K] }[] = [];
 
-export const sleep = (ms: number): Promise<void> => {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-};
+  for (let i = 0; i < minLength; i++) {
+    const tuple = arrays.map((arr) => arr[i]) as { [K in keyof T]: T[K] };
+    result.push(tuple);
+  }
 
-export const chunk = <T>(array: T[], size: number): T[][] => {
-  return array.reduce((acc: T[][], _, i) => {
-    if (i % size === 0) acc.push(array.slice(i, i + size));
-    return acc;
-  }, []);
-};
+  return result;
+}
 
-export const isDefined = <T>(value: T | null | undefined): value is T => {
-  return value !== null && value !== undefined;
-};
+/**
+ * Splits an array into smaller chunks of a specified maximum size.
+ */
+export function chunk<T>(array: T[], size: number): T[][] {
+  if (!Array.isArray(array) || size <= 0) {
+    return [];
+  }
 
-export const getOrDefault = <T>(value: T | undefined | null, defaultValue: T): T => {
-  return isDefined(value) ? value : defaultValue;
-};
+  const chunks: T[][] = [];
+  for (let i = 0; i < array.length; i += size) {
+    chunks.push(array.slice(i, i + size));
+  }
+
+  return chunks;
+}
+
+/**
+ * Generates an array of numbers over a specified sequence.
+ * Matches Python's built-in `range()` behavior.
+ */
+export function range(start: number, stop?: number, step = 1): number[] {
+  if (step === 0) {
+    throw new Error("Step argument must not be zero");
+  }
+
+  let actualStart = start;
+  let actualStop = stop;
+
+  if (actualStop === undefined) {
+    actualStop = start;
+    actualStart = 0;
+  }
+
+  const result: number[] = [];
+  if (step > 0) {
+    for (let i = actualStart; i < actualStop; i += step) {
+      result.push(i);
+    }
+  } else {
+    for (let i = actualStart; i > actualStop; i += step) {
+      result.push(i);
+    }
+  }
+
+  return result;
+}
