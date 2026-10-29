@@ -1,45 +1,48 @@
 export interface AppConfig {
-  maxRetries: number;
+  host: string;
+  port: number;
+  debug: boolean;
   timeoutMs: number;
+  retryCount: number;
+  logLevel: 'debug' | 'info' | 'warn' | 'error';
 }
 
-export const DEFAULT_CONFIG: AppConfig = {
-  maxRetries: 3,
-  timeoutMs: 5000
+export const DEFAULT_CONFIG: Readonly<AppConfig> = {
+  host: '127.0.0.1',
+  port: 8080,
+  debug: false,
+  timeoutMs: 5000,
+  retryCount: 3,
+  logLevel: 'info',
 };
 
 /**
- * Validates environment configuration objects
- * @throws Error if configuration values are out of bounds
+ * Loads and merges user configuration with standard defaults.
+ * Environment variables are evaluated when available.
  */
-export function validateConfig(config: unknown): AppConfig {
-  if (typeof config !== 'object' || config === null) {
-    throw new Error('invalid configuration: expected object');
+export function loadConfig(userConfig: Partial<AppConfig> = {}): AppConfig {
+  const envConfig: Partial<AppConfig> = {};
+
+  if (typeof process !== 'undefined' && process.env) {
+    if (process.env.APP_HOST) envConfig.host = process.env.APP_HOST;
+    if (process.env.APP_PORT) envConfig.port = parseInt(process.env.APP_PORT, 10);
+    if (process.env.APP_DEBUG) envConfig.debug = process.env.APP_DEBUG === 'true';
+    if (process.env.APP_TIMEOUT) envConfig.timeoutMs = parseInt(process.env.APP_TIMEOUT, 10);
   }
 
-  const { maxRetries, timeoutMs } = config as Partial<AppConfig>;
+  const merged = {
+    ...DEFAULT_CONFIG,
+    ...envConfig,
+    ...userConfig,
+  };
 
-  if (typeof maxRetries !== 'number' || maxRetries < 0) {
-    throw new Error('invalid maxRetries: must be non-negative number');
+  if (isNaN(merged.port) || merged.port <= 0 || merged.port > 65535) {
+    throw new Error(`Invalid configuration: port must be between 1 and 65535 (got ${merged.port})`);
   }
 
-  if (typeof timeoutMs !== 'number' || timeoutMs < 100) {
-    throw new Error('invalid timeoutMs: must be at least 100ms');
+  if (isNaN(merged.timeoutMs) || merged.timeoutMs < 0) {
+    throw new Error(`Invalid configuration: timeoutMs must be non-negative (got ${merged.timeoutMs})`);
   }
 
-  return { maxRetries, timeoutMs };
-}
-
-/**
- * Safely parses configuration string from environment
- */
-export function safeLoadConfig(jsonStr: string | undefined): AppConfig {
-  try {
-    if (!jsonStr) return DEFAULT_CONFIG;
-    const parsed = JSON.parse(jsonStr);
-    return validateConfig(parsed);
-  } catch (err) {
-    console.error('config fallback triggered:', err instanceof Error ? err.message : err);
-    return DEFAULT_CONFIG;
-  }
+  return merged;
 }
