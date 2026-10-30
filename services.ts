@@ -1,56 +1,34 @@
-export interface CacheOptions {
-  ttlMs?: number;
-  maxSize?: number;
+export interface RetryOptions {
+  maxAttempts: number;
+  delayMs: number;
 }
 
-interface CacheEntry<T> {
-  value: T;
-  timestamp: number;
-}
+export async function withRetry<T>(
+  operation: () => Promise<T>,
+  options: RetryOptions = { maxAttempts: 3, delayMs: 1000 }
+): Promise<T> {
+  let lastError: unknown;
 
-export class MemoizedService<TArgs extends any[], TResult> {
-  private cache = new Map<string, CacheEntry<TResult>>();
-  private readonly ttlMs: number;
-  private readonly maxSize: number;
-
-  constructor(
-    private readonly fn: (...args: TArgs) => TResult,
-    options: CacheOptions = {}
-  ) {
-    this.ttlMs = options.ttlMs ?? 60000;
-    this.maxSize = options.maxSize ?? 1000;
-  }
-
-  private generateKey(args: TArgs): string {
-    return JSON.stringify(args);
-  }
-
-  public execute(...args: TArgs): TResult {
-    const key = this.generateKey(args);
-    const now = Date.now();
-    const cached = this.cache.get(key);
-
-    if (cached && now - cached.timestamp < this.ttlMs) {
-      return cached.value;
-    }
-
-    if (this.cache.size >= this.maxSize) {
-      const oldestKey = this.cache.keys().next().value;
-      if (oldestKey !== undefined) {
-        this.cache.delete(oldestKey);
+  for (let attempt = 1; attempt <= options.maxAttempts; attempt++) {
+    try {
+      return await operation();
+    } catch (err) {
+      lastError = err;
+      if (attempt < options.maxAttempts) {
+        await new Promise((resolve) => setTimeout(resolve, options.delayMs));
       }
     }
-
-    const result = this.fn(...args);
-    this.cache.set(key, { value: result, timestamp: now });
-    return result;
   }
 
-  public clearCache(): void {
-    this.cache.clear();
-  }
+  throw lastError;
+}
 
-  public get size(): number {
-    return this.cache.size;
-  }
+export async function fetchWithRetry(url: string, options?: RetryOptions): Promise<Response> {
+  return withRetry(async () => {
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    return response;
+  }, options);
 }
