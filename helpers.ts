@@ -1,70 +1,76 @@
 /**
- * Efficient LRU cache for high-frequency utility operations.
+ * Custom error types for Python-like validation handling.
  */
-export class FastCache<K, V> {
-  private cache = new Map<K, V>();
-  private readonly maxSize: number;
-
-  constructor(maxSize: number = 1000) {
-    this.maxSize = maxSize;
-  }
-
-  get(key: K): V | undefined {
-    const item = this.cache.get(key);
-    if (item !== undefined) {
-      // Refresh position to maintain LRU order
-      this.cache.delete(key);
-      this.cache.set(key, item);
-    }
-    return item;
-  }
-
-  set(key: K, value: V): void {
-    if (this.cache.has(key)) {
-      this.cache.delete(key);
-    } else if (this.cache.size >= this.maxSize) {
-      const oldestKey = this.cache.keys().next().value;
-      if (oldestKey !== undefined) {
-        this.cache.delete(oldestKey);
-      }
-    }
-    this.cache.set(key, value);
-  }
-
-  clear(): void {
-    this.cache.clear();
+export class PythonValueError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'PythonValueError';
   }
 }
 
-const snakeToCamelCache = new FastCache<string, string>(2000);
+export class PythonTypeError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'PythonTypeError';
+  }
+}
+
+export interface RangeConfig {
+  start: number;
+  stop: number;
+  step: number;
+}
 
 /**
- * Converts snake_case string to camelCase with memoized lookup.
+ * Parses and validates Python-style range parameters with explicit edge-case error checks.
  */
-export function snakeToCamel(str: string): string {
-  const cached = snakeToCamelCache.get(str);
-  if (cached !== undefined) return cached;
+export function parseRangeArgs(start: number, stop?: number, step?: number): RangeConfig {
+  if (typeof start !== 'number' || !Number.isFinite(start)) {
+    throw new PythonTypeError(`Invalid start argument: ${start}. Must be a finite number.`);
+  }
 
-  const result = str.replace(/_([a-z0-9])/g, (_, letter) => letter.toUpperCase());
-  snakeToCamelCache.set(str, result);
+  let actualStart = start;
+  let actualStop = stop;
+  const actualStep = step ?? 1;
+
+  if (stop === undefined) {
+    actualStart = 0;
+    actualStop = start;
+  } else if (typeof stop !== 'number' || !Number.isFinite(stop)) {
+    throw new PythonTypeError(`Invalid stop argument: ${stop}. Must be a finite number.`);
+  }
+
+  if (typeof actualStep !== 'number' || !Number.isFinite(actualStep)) {
+    throw new PythonTypeError(`Invalid step argument: ${actualStep}. Must be a finite number.`);
+  }
+
+  if (actualStep === 0) {
+    throw new PythonValueError('range() step argument must not be zero');
+  }
+
+  return {
+    start: Math.trunc(actualStart),
+    stop: Math.trunc(actualStop),
+    step: Math.trunc(actualStep)
+  };
+}
+
+/**
+ * Generates an array of numbers replicating Python range behavior safely.
+ */
+export function pythonRange(start: number, stop?: number, step?: number): number[] {
+  const config = parseRangeArgs(start, stop, step);
+  const { start: rStart, stop: rStop, step: rStep } = config;
+
+  const estimatedSize = Math.ceil(Math.abs((rStop - rStart) / rStep));
+  if (estimatedSize > 1_000_000) {
+    throw new RangeError(`Range size ${estimatedSize} exceeds maximum allocation threshold.`);
+  }
+
+  const result: number[] = [];
+  for (let i = rStart; rStep > 0 ? i < rStop : i > rStop; i += rStep) {
+    result.push(i);
+  }
+
   return result;
-}
-
-/**
- * Efficiently transforms object keys in batch using cached transformations.
- */
-export function memoizedKeyMapper<T extends Record<string, unknown>>(obj: T): Record<string, unknown> {
-  if (!obj || typeof obj !== 'object' || Array.isArray(obj)) {
-    return obj;
-  }
-
-  const transformed: Record<string, unknown> = {};
-  const keys = Object.keys(obj);
-
-  for (let i = 0; i < keys.length; i++) {
-    const key = keys[i];
-    transformed[snakeToCamel(key)] = obj[key];
-  }
-
-  return transformed;
 }
