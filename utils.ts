@@ -1,72 +1,35 @@
 /**
- * Utility functions providing Python-like data manipulation features.
+ * Python-inspired utility helpers for common operations
  */
 
-/**
- * Combines multiple arrays into an array of tuples, stopping at the shortest length.
- * Matches Python's built-in `zip()` behavior.
- */
-export function zip<T extends any[]>(
-  ...arrays: { [K in keyof T]: T[K][] }
-): { [K in keyof T]: T[K] }[] {
-  if (arrays.length === 0) {
-    return [];
-  }
-
-  const minLength = Math.min(...arrays.map((arr) => arr.length));
-  const result: { [K in keyof T]: T[K] }[] = [];
-
-  for (let i = 0; i < minLength; i++) {
-    const tuple = arrays.map((arr) => arr[i]) as { [K in keyof T]: T[K] };
-    result.push(tuple);
-  }
-
-  return result;
-}
-
-/**
- * Splits an array into smaller chunks of a specified maximum size.
- */
-export function chunk<T>(array: T[], size: number): T[][] {
-  if (!Array.isArray(array) || size <= 0) {
-    return [];
-  }
-
-  const chunks: T[][] = [];
-  for (let i = 0; i < array.length; i += size) {
-    chunks.push(array.slice(i, i + size));
-  }
-
-  return chunks;
-}
-
-/**
- * Generates an array of numbers over a specified sequence.
- * Matches Python's built-in `range()` behavior.
- */
-export function range(start: number, stop?: number, step = 1): number[] {
-  if (step === 0) {
-    throw new Error("Step argument must not be zero");
-  }
-
-  let actualStart = start;
-  let actualStop = stop;
-
-  if (actualStop === undefined) {
-    actualStop = start;
-    actualStart = 0;
-  }
-
+export const range = (start: number, end?: number, step: number = 1): number[] => {
+  const [s, e] = end === undefined ? [0, start] : [start, end];
   const result: number[] = [];
-  if (step > 0) {
-    for (let i = actualStart; i < actualStop; i += step) {
-      result.push(i);
-    }
-  } else {
-    for (let i = actualStart; i > actualStop; i += step) {
-      result.push(i);
-    }
+  for (let i = s; i < e; i += step) {
+    result.push(i);
   }
-
   return result;
-}
+};
+
+export const chunk = <T>(array: T[], size: number): T[][] => {
+  return Array.from({ length: Math.ceil(array.length / size) }, (_, i) =>
+    array.slice(i * size, i * size + size)
+  );
+};
+
+export const pick = <T, K extends keyof T>(obj: T, keys: K[]): Pick<T, K> => {
+  const result = {} as Pick<T, K>;
+  keys.forEach((key) => {
+    if (key in obj) result[key] = obj[key];
+  });
+  return result;
+};
+
+export const sleep = (ms: number): Promise<void> => {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+};
+
+export const capitalize = (str: string): string => {
+  if (!str) return str;
+  return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+};
