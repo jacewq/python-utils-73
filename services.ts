@@ -1,34 +1,44 @@
-export interface RetryOptions {
-  maxAttempts: number;
-  delayMs: number;
+export interface DataEnvelope<T> {
+  data: T;
+  timestamp: number;
+  source: string;
 }
 
-export async function withRetry<T>(
-  operation: () => Promise<T>,
-  options: RetryOptions = { maxAttempts: 3, delayMs: 1000 }
-): Promise<T> {
-  let lastError: unknown;
-
-  for (let attempt = 1; attempt <= options.maxAttempts; attempt++) {
-    try {
-      return await operation();
-    } catch (err) {
-      lastError = err;
-      if (attempt < options.maxAttempts) {
-        await new Promise((resolve) => setTimeout(resolve, options.delayMs));
-      }
-    }
-  }
-
-  throw lastError;
+/**
+ * Safely transforms incoming API data into a standardized envelope
+ */
+export function createDataEnvelope<T>(payload: T, source: string = 'unknown'): DataEnvelope<T> {
+  return {
+    data: payload,
+    timestamp: Date.now(),
+    source,
+  };
 }
 
-export async function fetchWithRetry(url: string, options?: RetryOptions): Promise<Response> {
-  return withRetry(async () => {
-    const response = await fetch(url);
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+/**
+ * Recursively flattens an object to dot-notation strings for simplified path access
+ */
+export function flattenObject(obj: Record<string, any>, prefix = ''): Record<string, any> {
+  return Object.keys(obj).reduce((acc, k) => {
+    const pre = prefix.length ? `${prefix}.` : '';
+    if (typeof obj[k] === 'object' && obj[k] !== null && !Array.isArray(obj[k])) {
+      Object.assign(acc, flattenObject(obj[k], pre + k));
+    } else {
+      acc[pre + k] = obj[k];
     }
-    return response;
-  }, options);
+    return acc;
+  }, {} as Record<string, any>);
+}
+
+/**
+ * Filters object properties based on a provided whitelist array
+ */
+export function pick<T extends object, K extends keyof T>(obj: T, keys: K[]): Pick<T, K> {
+  const result = {} as Pick<T, K>;
+  keys.forEach((key) => {
+    if (key in obj) {
+      result[key] = obj[key];
+    }
+  });
+  return result;
 }
