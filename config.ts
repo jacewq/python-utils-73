@@ -1,8 +1,8 @@
 export interface AppConfig {
   env: 'development' | 'staging' | 'production';
   port: number;
-  logLevel: 'debug' | 'info' | 'warn' | 'error';
-  pythonPath: string;
+  host: string;
+  debug: boolean;
   timeoutMs: number;
   maxRetries: number;
 }
@@ -10,53 +10,46 @@ export interface AppConfig {
 export const DEFAULT_CONFIG: AppConfig = {
   env: 'development',
   port: 8080,
-  logLevel: 'info',
-  pythonPath: 'python3',
+  host: 'localhost',
+  debug: false,
   timeoutMs: 5000,
   maxRetries: 3,
 };
 
-export class ConfigLoader {
-  private config: AppConfig;
+/**
+ * Merges user-defined configuration overrides with environment defaults.
+ * Automatically reads process.env when running in a Node environment.
+ */
+export function loadConfig(overrides: Partial<AppConfig> = {}): AppConfig {
+  const envVars: Partial<AppConfig> = {};
 
-  constructor(overrides: Partial<AppConfig> = {}) {
-    this.config = this.mergeWithDefaults(overrides);
-  }
-
-  /**
-   * Merges user-defined options over standard default settings
-   */
-  private mergeWithDefaults(overrides: Partial<AppConfig>): AppConfig {
-    return {
-      ...DEFAULT_CONFIG,
-      ...overrides,
-    };
-  }
-
-  /**
-   * Retrieves a typed value from current configuration
-   */
-  public get<K extends keyof AppConfig>(key: K): AppConfig[K] {
-    return this.config[key];
-  }
-
-  /**
-   * Returns a copy of the resolved configuration object
-   */
-  public getAll(): AppConfig {
-    return { ...this.config };
-  }
-
-  /**
-   * Validates critical fields for runtime correctness
-   */
-  public validate(): boolean {
-    if (this.config.port <= 0 || this.config.port > 65535) {
-      throw new Error(`Invalid port number: ${this.config.port}`);
+  if (typeof process !== 'undefined' && process.env) {
+    if (process.env.NODE_ENV) {
+      const env = process.env.NODE_ENV.toLowerCase();
+      if (env === 'production' || env === 'staging' || env === 'development') {
+        envVars.env = env;
+      }
     }
-    if (this.config.timeoutMs < 0) {
-      throw new Error(`Invalid timeout value: ${this.config.timeoutMs}`);
+
+    if (process.env.PORT) {
+      const parsedPort = parseInt(process.env.PORT, 10);
+      if (!isNaN(parsedPort)) {
+        envVars.port = parsedPort;
+      }
     }
-    return true;
+
+    if (process.env.HOST) {
+      envVars.host = process.env.HOST;
+    }
+
+    if (process.env.DEBUG) {
+      envVars.debug = process.env.DEBUG.toLowerCase() === 'true';
+    }
   }
+
+  return {
+    ...DEFAULT_CONFIG,
+    ...envVars,
+    ...overrides,
+  };
 }
