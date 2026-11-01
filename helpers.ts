@@ -1,57 +1,41 @@
-/**
- * Safely accesses deeply nested properties in an object using dot-notation path.
- */
-export function deepGet<T = unknown>(
-  obj: Record<string, any>,
-  path: string,
-  defaultValue?: T
-): T | undefined {
-  if (!obj || typeof obj !== 'object') {
-    return defaultValue;
-  }
-
-  const keys = path.split('.');
-  let current: any = obj;
-
-  for (const key of keys) {
-    if (current === null || current === undefined || !(key in current)) {
-      return defaultValue;
-    }
-    current = current[key];
-  }
-
-  return current as T;
+export interface RetryOptions {
+  maxRetries?: number;
+  initialDelayMs?: number;
+  backoffFactor?: number;
+  retryOn?: (error: unknown) => boolean;
 }
 
 /**
- * Splits an array into chunks of a specified maximum size.
+ * Executes an async operation with configurable retry attempts and exponential backoff.
  */
-export function chunk<T>(array: T[], size: number): T[][] {
-  if (size <= 0) {
-    throw new Error('Chunk size must be greater than 0');
-  }
+export async function retryOperation<T>(
+  operation: () => Promise<T>,
+  options: RetryOptions = {}
+): Promise<T> {
+  const {
+    maxRetries = 3,
+    initialDelayMs = 500,
+    backoffFactor = 2,
+    retryOn = () => true,
+  } = options;
 
-  const result: T[][] = [];
-  for (let i = 0; i < array.length; i += size) {
-    result.push(array.slice(i, i + size));
-  }
+  let attempt = 0;
+  let delay = initialDelayMs;
 
-  return result;
-}
+  while (true) {
+    try {
+      attempt++;
+      return await operation();
+    } catch (error) {
+      const isLastAttempt = attempt > maxRetries;
+      const shouldRetry = retryOn(error);
 
-/**
- * Groups array elements by a key generated from a callback function.
- */
-export function groupBy<T, K extends string | number | symbol>(
-  array: T[],
-  keySelector: (item: T) => K
-): Record<K, T[]> {
-  return array.reduce((acc, item) => {
-    const key = keySelector(item);
-    if (!acc[key]) {
-      acc[key] = [];
+      if (isLastAttempt || !shouldRetry) {
+        throw error;
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, delay));
+      delay *= backoffFactor;
     }
-    acc[key].push(item);
-    return acc;
-  }, {} as Record<K, T[]>);
+  }
 }
