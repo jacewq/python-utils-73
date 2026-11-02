@@ -1,44 +1,42 @@
-export interface DataEnvelope<T> {
-  data: T;
+export interface ProcessResult<T> {
+  data: T | null;
+  error: Error | null;
   timestamp: number;
-  source: string;
 }
 
 /**
- * Safely transforms incoming API data into a standardized envelope
+ * safely execute a callback and return standard result structure
  */
-export function createDataEnvelope<T>(payload: T, source: string = 'unknown'): DataEnvelope<T> {
-  return {
-    data: payload,
-    timestamp: Date.now(),
-    source,
-  };
-}
+export const safeExecute = async <T>(fn: () => Promise<T>): Promise<ProcessResult<T>> => {
+  try {
+    const data = await fn();
+    return { data, error: null, timestamp: Date.now() };
+  } catch (err) {
+    return { data: null, error: err instanceof Error ? err : new Error(String(err)), timestamp: Date.now() };
+  }
+};
 
 /**
- * Recursively flattens an object to dot-notation strings for simplified path access
+ * filter null/undefined values from an array
  */
-export function flattenObject(obj: Record<string, any>, prefix = ''): Record<string, any> {
-  return Object.keys(obj).reduce((acc, k) => {
-    const pre = prefix.length ? `${prefix}.` : '';
-    if (typeof obj[k] === 'object' && obj[k] !== null && !Array.isArray(obj[k])) {
-      Object.assign(acc, flattenObject(obj[k], pre + k));
-    } else {
-      acc[pre + k] = obj[k];
-    }
-    return acc;
-  }, {} as Record<string, any>);
-}
+export const compact = <T>(arr: (T | null | undefined)[]): T[] => {
+  return arr.filter((item): item is T => item !== null && item !== undefined);
+};
 
 /**
- * Filters object properties based on a provided whitelist array
+ * delay execution for a set number of milliseconds
  */
-export function pick<T extends object, K extends keyof T>(obj: T, keys: K[]): Pick<T, K> {
-  const result = {} as Pick<T, K>;
-  keys.forEach((key) => {
-    if (key in obj) {
-      result[key] = obj[key];
-    }
-  });
+export const sleep = (ms: number): Promise<void> => {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+};
+
+/**
+ * chunk an array into smaller sub-arrays
+ */
+export const chunk = <T>(arr: T[], size: number): T[][] => {
+  const result: T[][] = [];
+  for (let i = 0; i < arr.length; i += size) {
+    result.push(arr.slice(i, i + size));
+  }
   return result;
-}
+};
