@@ -1,51 +1,47 @@
 # python-utils-73
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-
-`python-utils-73` brings Python's most ergonomic standard library utilities and built-in functions directly into modern TypeScript environments. It offers type-safe, zero-dependency implementations of Python-style iterators, collection primitives, and string manipulators for Node.js and browser runtimes.
+A high-performance TypeScript toolkit designed to bridge the gap between Python-style data manipulation and native JavaScript performance. This library provides a robust collection of functional utilities for complex array transformations, object deep-merging, and asynchronous workflow orchestration.
 
 ## Features
 
-- **Pythonic Iterators:** Lazy-evaluation generators including `range()`, `zip()`, `enumerate()`, and `chunk()` designed for clean iteration pipelines.
-- **Rich Collections:** Fully typed equivalents of Python's `Counter`, `defaultdict`, and double-ended queue (`deque`).
-- **String Utilities:** Native-feeling string methods like `strip()`, `zfill()`, `partition()`, and `title()` with strict type signatures.
-- **Zero Dependencies:** Ultra-lightweight codebase built entirely in TypeScript with full ESM and CommonJS support.
+*   **Pythonic Iterables:** Implements lazy evaluation patterns and generators similar to Python’s `itertools` for memory-efficient data processing.
+*   **Deep Object Utilities:** Advanced deep-clone, recursive merge, and property-path resolution with built-in schema validation.
+*   **Type-Safe Async Pipelines:** Compose complex asynchronous tasks using a fluent interface that preserves strict TypeScript definitions at every step.
+*   **Zero-Dependency Core:** Built using pure TypeScript with zero external dependencies to ensure minimal bundle sizes and high security.
 
 ## Installation
 
-Install via your preferred package manager:
+Install the package via npm or yarn:
 
 ```bash
 npm install python-utils-73
-```
-
-```bash
-pnpm add python-utils-73
-```
-
-```bash
+# or
 yarn add python-utils-73
 ```
 
-## Quick Start
+## Basic Usage
 
 ```typescript
-import { range, zip, Counter, defaultdict } from 'python-utils-73';
+import { chunk, pipe } from 'python-utils-73';
 
-// 1. Lazy iteration with range and zip
-const indices = range(1, 5);
-const labels = ['alpha', 'beta', 'gamma', 'delta'];
+const data = [1, 2, 3, 4, 5, 6];
 
-for (const [index, label] of zip(indices, labels)) {
-  console.log(`${index}: ${label}`);
-}
-// Output: "1: alpha", "2: beta", "3: gamma", "4: delta"
+// Chain utility functions for clean, readable data manipulation
+const result = pipe(
+  data,
+  (arr) => chunk(arr, 2),
+  (chunks) => chunks.flat().map(n => n * 2)
+);
 
-// 2. Frequency counting with Counter
-const tally = new Counter(['apple', 'banana', 'apple', 'orange', 'apple']);
-console.log(tally.mostCommon(1)); 
-// Output: [['apple', 3]]
+console.log(result); // [2, 4, 6, 8, 10, 12]
+```
 
-// 3. Auto-initializing maps with defaultdict
-const grouped = new defaultdict<string, number[]>(() => []);
-grouped.get('scores').push
+## Contributing
+
+Contributions are welcome! Please open an issue to discuss proposed features or submit a pull request with full test coverage for any new utility functions.
+
+## License
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
