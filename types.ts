@@ -1,40 +1,39 @@
-export interface ProcessedInput {
-  id: string;
-  value: number;
-  timestamp: number;
+/**
+ * General utility type definitions for python-utils-73.
+ */
+
+/** Options for array slicing resembling Python slice() parameters. */
+export interface SliceOptions {
+  /** Starting index for slice operation. */
+  start?: number;
+  /** Ending index for slice operation. */
+  stop?: number;
+  /** Step value for index increments. */
+  step?: number;
 }
 
-export const validateInput = (data: unknown): data is ProcessedInput => {
-  if (typeof data !== 'object' || data === null) return false;
-  const d = data as Record<string, unknown>;
+/** Options for configuring default dict containers. */
+export interface DefaultDictConfig<V> {
+  /** Factory function to produce default value for missing keys. */
+  factory: () => V;
+  /** Initial object entries to seed the dictionary. */
+  initialData?: Record<string, V>;
+}
 
-  const isIdValid = typeof d.id === 'string' && d.id.length > 0;
-  const isValueValid = typeof d.value === 'number' && Number.isFinite(d.value);
-  const isTimestampValid = typeof d.timestamp === 'number';
+/** Container type representing Python-like (success, value/error) result tuples. */
+export type Result<T, E extends Error = Error> =
+  | { ok: true; value: T; error?: never }
+  | { ok: false; value?: never; error: E };
 
-  return isIdValid && isValueValid && isTimestampValid;
-};
+/** Options for range generation functions mimicking Python's range(). */
+export interface RangeOptions {
+  /** Starting integer of the range. */
+  start: number;
+  /** Inclusive or exclusive stop boundary. */
+  stop: number;
+  /** Increment or decrement step value. */
+  step?: number;
+}
 
-export const processMainLoop = (items: unknown[]): ProcessedInput[] => {
-  const results: ProcessedInput[] = [];
-
-  for (const item of items) {
-    if (validateInput(item)) {
-      results.push(item);
-    } else {
-      console.warn('Invalid input format detected, skipping item:', item);
-    }
-  }
-
-  return results;
-};
-
-export type ProcessingError = {
-  code: string;
-  message: string;
-};
-
-export const createError = (code: string, message: string): ProcessingError => ({
-  code,
-  message
-});
+/** Callback function signature for collection transformation. */
+export type MapCallback<T, R> = (element: T, index: number) => R;
