@@ -1,39 +1,45 @@
+export interface PythonExecutionResult {
+  output: string;
+  error?: string;
+  exitCode: number;
+}
+
+export class PythonRuntimeError extends Error {
+  constructor(public message: string, public code: number) {
+    super(message);
+    this.name = 'PythonRuntimeError';
+  }
+}
+
+export const handleExecutionFailure = (error: unknown): PythonExecutionResult => {
+  if (error instanceof Error) {
+    return {
+      output: '',
+      error: error.message,
+      exitCode: 1
+    };
+  }
+  return {
+    output: '',
+    error: 'An unknown fatal error occurred during execution',
+    exitCode: 1
+  };
+};
+
+export type ExecutionResponse = {
+  status: 'success' | 'failure';
+  payload: PythonExecutionResult;
+};
+
 /**
- * General utility type definitions for python-utils-73.
+ * Validates the exit code from a python process
+ * Throws PythonRuntimeError if code is non-zero
  */
-
-/** Options for array slicing resembling Python slice() parameters. */
-export interface SliceOptions {
-  /** Starting index for slice operation. */
-  start?: number;
-  /** Ending index for slice operation. */
-  stop?: number;
-  /** Step value for index increments. */
-  step?: number;
+export function validateExitCode(code: number | null): void {
+  if (code !== 0) {
+    throw new PythonRuntimeError(
+      `Process exited with code ${code ?? 'null'}`, 
+      code ?? 1
+    );
+  }
 }
-
-/** Options for configuring default dict containers. */
-export interface DefaultDictConfig<V> {
-  /** Factory function to produce default value for missing keys. */
-  factory: () => V;
-  /** Initial object entries to seed the dictionary. */
-  initialData?: Record<string, V>;
-}
-
-/** Container type representing Python-like (success, value/error) result tuples. */
-export type Result<T, E extends Error = Error> =
-  | { ok: true; value: T; error?: never }
-  | { ok: false; value?: never; error: E };
-
-/** Options for range generation functions mimicking Python's range(). */
-export interface RangeOptions {
-  /** Starting integer of the range. */
-  start: number;
-  /** Inclusive or exclusive stop boundary. */
-  stop: number;
-  /** Increment or decrement step value. */
-  step?: number;
-}
-
-/** Callback function signature for collection transformation. */
-export type MapCallback<T, R> = (element: T, index: number) => R;
