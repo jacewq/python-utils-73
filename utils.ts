@@ -4,26 +4,30 @@ export interface RetryOptions {
 }
 
 /**
- * Executes a function with exponential backoff retry logic.
+ * Retries an asynchronous operation with a fixed delay.
  */
 export async function withRetry<T>(
-  fn: () => Promise<T>,
+  operation: () => Promise<T>,
   options: RetryOptions = { maxAttempts: 3, delayMs: 1000 }
 ): Promise<T> {
   let lastError: unknown;
 
   for (let attempt = 1; attempt <= options.maxAttempts; attempt++) {
     try {
-      return await fn();
-    } catch (error) {
-      lastError = error;
-
+      return await operation();
+    } catch (err) {
+      lastError = err;
       if (attempt < options.maxAttempts) {
-        const backoff = options.delayMs * Math.pow(2, attempt - 1);
-        await new Promise((resolve) => setTimeout(resolve, backoff));
+        await new Promise((resolve) => setTimeout(resolve, options.delayMs));
       }
     }
   }
 
   throw lastError;
 }
+
+/**
+ * Helper to pause execution for a given duration.
+ */
+export const sleep = (ms: number): Promise<void> => 
+  new Promise((resolve) => setTimeout(resolve, ms));
