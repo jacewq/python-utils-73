@@ -1,55 +1,41 @@
-/**
- * Configuration and validation schemas for python-utils-73
- */
-
-export interface ProcessConfig {
-  inputPath: string;
+export interface ProcessingConfig {
   maxRetries: number;
   timeoutMs: number;
+  inputSchema: RegExp;
 }
 
-export class ConfigValidator {
-  /**
-   * Validates configuration objects before processing
-   */
-  public static validate(config: unknown): config is ProcessConfig {
-    const c = config as any;
+export const defaultConfig: ProcessingConfig = {
+  maxRetries: 3,
+  timeoutMs: 5000,
+  inputSchema: /^[a-zA-Z0-9_-]+$/,
+};
 
-    if (typeof c !== 'object' || c === null) {
-      return false;
-    }
-
-    if (typeof c.inputPath !== 'string' || c.inputPath.trim() === '') {
-      return false;
-    }
-
-    if (typeof c.maxRetries !== 'number' || c.maxRetries < 0) {
-      return false;
-    }
-
-    if (typeof c.timeoutMs !== 'number' || c.timeoutMs <= 0) {
-      return false;
-    }
-
-    return true;
+/**
+ * validates input strings against configured patterns
+ */
+export function validateInput(input: unknown, config: ProcessingConfig): boolean {
+  if (typeof input !== 'string') {
+    return false;
   }
 
-  public static getDefaultConfig(): ProcessConfig {
-    return {
-      inputPath: './data',
-      maxRetries: 3,
-      timeoutMs: 5000,
-    };
+  if (input.length === 0 || input.length > 256) {
+    return false;
   }
+
+  return config.inputSchema.test(input);
 }
 
 /**
- * Main processing loop entry point with validation
+ * wrapper for secure processing iteration
  */
-export function processLoop(config: unknown): void {
-  if (!ConfigValidator.validate(config)) {
-    throw new Error('invalid configuration schema provided');
+export function processLoop(items: unknown[], config: ProcessingConfig): void {
+  for (const item of items) {
+    if (!validateInput(item, config)) {
+      console.error(`Invalid input detected: ${item}`);
+      continue;
+    }
+    
+    // perform core logic
+    console.log(`Processing valid input: ${item}`);
   }
-
-  console.log('processing with config:', config);
 }
