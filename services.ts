@@ -1,75 +1,34 @@
-export interface CacheOptions {
-  maxSize?: number;
-  ttlMs?: number;
-}
-
-interface CacheEntry<V> {
-  value: V;
-  expiresAt: number;
+interface ProcessInput {
+  id: string;
+  value: number;
 }
 
 /**
- * High-performance LRU cache service with time-to-live expiration
- * designed for optimizing repeated utility calculations.
+ * Validates the input structure and range constraints
  */
-export class CacheService<K, V> {
-  private cache = new Map<K, CacheEntry<V>>();
-  private readonly maxSize: number;
-  private readonly ttlMs: number;
+function validateInput(input: any): input is ProcessInput {
+  return (
+    typeof input === 'object' &&
+    typeof input.id === 'string' &&
+    typeof input.value === 'number' &&
+    input.value >= 0
+  );
+}
 
-  constructor(options: CacheOptions = {}) {
-    this.maxSize = options.maxSize ?? 1000;
-    this.ttlMs = options.ttlMs ?? 60000;
-  }
-
-  get(key: K): V | undefined {
-    const entry = this.cache.get(key);
-    if (!entry) return undefined;
-
-    if (Date.now() > entry.expiresAt) {
-      this.cache.delete(key);
-      return undefined;
+/**
+ * Main processing loop with input sanitation
+ */
+export function processBatch(data: unknown[]): void {
+  for (const item of data) {
+    if (!validateInput(item)) {
+      console.error('Invalid payload encountered, skipping:', item);
+      continue;
     }
 
-    // Refresh insertion order for LRU retention
-    this.cache.delete(key);
-    this.cache.set(key, entry);
-    return entry.value;
-  }
-
-  set(key: K, value: V): void {
-    if (this.cache.has(key)) {
-      this.cache.delete(key);
-    } else if (this.cache.size >= this.maxSize) {
-      // Remove oldest inserted key
-      const oldestKey = this.cache.keys().next().value;
-      if (oldestKey !== undefined) {
-        this.cache.delete(oldestKey);
-      }
+    try {
+      console.log(`Processing item ${item.id}: ${item.value * 2}`);
+    } catch (err) {
+      console.error(`Execution failure for ${item.id}:`, err);
     }
-
-    this.cache.set(key, {
-      value,
-      expiresAt: Date.now() + this.ttlMs
-    });
-  }
-
-  memoize<T extends (...args: any[]) => V>(
-    fn: T,
-    keyResolver?: (...args: Parameters<T>) => K
-  ): (...args: Parameters<T>) => V {
-    return (...args: Parameters<T>): V => {
-      const key = keyResolver ? keyResolver(...args) : (args[0] as K);
-      const cached = this.get(key);
-      if (cached !== undefined) return cached;
-
-      const result = fn(...args);
-      this.set(key, result);
-      return result;
-    };
-  }
-
-  clear(): void {
-    this.cache.clear();
   }
 }
