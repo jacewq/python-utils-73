@@ -1,45 +1,36 @@
-export interface PythonExecutionResult {
-  output: string;
-  error?: string;
-  exitCode: number;
-}
-
-export class PythonRuntimeError extends Error {
-  constructor(public message: string, public code: number) {
+export class PythonUtilsError extends Error {
+  constructor(public message: string, public code: string, public context?: Record<string, unknown>) {
     super(message);
-    this.name = 'PythonRuntimeError';
+    this.name = 'PythonUtilsError';
   }
 }
 
-export const handleExecutionFailure = (error: unknown): PythonExecutionResult => {
-  if (error instanceof Error) {
-    return {
-      output: '',
-      error: error.message,
-      exitCode: 1
-    };
-  }
-  return {
-    output: '',
-    error: 'An unknown fatal error occurred during execution',
-    exitCode: 1
-  };
-};
+export type ExecutionResult<T> = 
+  | { success: true; data: T }
+  | { success: false; error: PythonUtilsError };
 
-export type ExecutionResponse = {
-  status: 'success' | 'failure';
-  payload: PythonExecutionResult;
-};
-
-/**
- * Validates the exit code from a python process
- * Throws PythonRuntimeError if code is non-zero
- */
-export function validateExitCode(code: number | null): void {
-  if (code !== 0) {
-    throw new PythonRuntimeError(
-      `Process exited with code ${code ?? 'null'}`, 
-      code ?? 1
-    );
-  }
+export interface ValidationOptions {
+  strict: boolean;
+  timeout?: number;
 }
+
+export const handleExecutionError = (err: unknown, context: string): PythonUtilsError => {
+  if (err instanceof PythonUtilsError) {
+    return err;
+  }
+  
+  const message = err instanceof Error ? err.message : 'Unknown execution error';
+  return new PythonUtilsError(message, 'EXECUTION_FAILURE', { context });
+};
+
+export const validateResponse = <T>(data: unknown, options: ValidationOptions): T => {
+  if (data === null || data === undefined) {
+    throw new PythonUtilsError('Received null response', 'INVALID_RESPONSE');
+  }
+  
+  if (options.strict && typeof data !== 'object') {
+    throw new PythonUtilsError('Strict validation failed', 'SCHEMA_MISMATCH');
+  }
+
+  return data as T;
+};
