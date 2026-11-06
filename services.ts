@@ -1,34 +1,39 @@
-interface ProcessInput {
-  id: string;
-  value: number;
+export interface PythonProcessConfig {
+  executable: string;
+  env: Record<string, string>;
+  timeout: number;
 }
 
-/**
- * Validates the input structure and range constraints
- */
-function validateInput(input: any): input is ProcessInput {
-  return (
-    typeof input === 'object' &&
-    typeof input.id === 'string' &&
-    typeof input.value === 'number' &&
-    input.value >= 0
-  );
-}
+export class PythonExecutor {
+  private config: PythonProcessConfig;
 
-/**
- * Main processing loop with input sanitation
- */
-export function processBatch(data: unknown[]): void {
-  for (const item of data) {
-    if (!validateInput(item)) {
-      console.error('Invalid payload encountered, skipping:', item);
-      continue;
-    }
+  constructor(config: PythonProcessConfig) {
+    this.config = config;
+  }
 
-    try {
-      console.log(`Processing item ${item.id}: ${item.value * 2}`);
-    } catch (err) {
-      console.error(`Execution failure for ${item.id}:`, err);
-    }
+  public async runScript(scriptPath: string, args: string[] = []): Promise<string> {
+    const { spawn } = await import('child_process');
+    
+    return new Promise((resolve, reject) => {
+      const process = spawn(this.config.executable, [scriptPath, ...args], {
+        env: { ...process.env, ...this.config.env }
+      });
+
+      let output = '';
+      let error = '';
+
+      process.stdout.on('data', (data) => { output += data.toString(); });
+      process.stderr.on('data', (data) => { error += data.toString(); });
+
+      process.on('close', (code) => {
+        if (code !== 0) reject(new Error(`Process failed: ${error}`));
+        else resolve(output);
+      });
+
+      setTimeout(() => {
+        process.kill();
+        reject(new Error('Process execution timed out'));
+      }, this.config.timeout);
+    });
   }
 }
