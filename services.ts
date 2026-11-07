@@ -1,39 +1,43 @@
-export interface PythonProcessConfig {
-  executable: string;
-  env: Record<string, string>;
-  timeout: number;
+/**
+ * Utility functions for common data transformation patterns
+ * ensuring type safety and minimal overhead.
+ */
+
+export type DataRecord = Record<string, unknown>;
+
+/**
+ * Deeply cleans an object by removing undefined and null properties.
+ */
+export function cleanObject<T extends DataRecord>(obj: T): Partial<T> {
+  const cleaned: DataRecord = {};
+
+  for (const [key, value] of Object.entries(obj)) {
+    if (value !== undefined && value !== null) {
+      cleaned[key] = value;
+    }
+  }
+
+  return cleaned as Partial<T>;
 }
 
-export class PythonExecutor {
-  private config: PythonProcessConfig;
+/**
+ * Groups an array of objects by a specific key.
+ */
+export function groupBy<T extends DataRecord>(data: T[], key: keyof T): Record<string, T[]> {
+  return data.reduce((acc, item) => {
+    const groupKey = String(item[key]);
+    if (!acc[groupKey]) {
+      acc[groupKey] = [];
+    }
+    acc[groupKey].push(item);
+    return acc;
+  }, {} as Record<string, T[]>);
+}
 
-  constructor(config: PythonProcessConfig) {
-    this.config = config;
-  }
-
-  public async runScript(scriptPath: string, args: string[] = []): Promise<string> {
-    const { spawn } = await import('child_process');
-    
-    return new Promise((resolve, reject) => {
-      const process = spawn(this.config.executable, [scriptPath, ...args], {
-        env: { ...process.env, ...this.config.env }
-      });
-
-      let output = '';
-      let error = '';
-
-      process.stdout.on('data', (data) => { output += data.toString(); });
-      process.stderr.on('data', (data) => { error += data.toString(); });
-
-      process.on('close', (code) => {
-        if (code !== 0) reject(new Error(`Process failed: ${error}`));
-        else resolve(output);
-      });
-
-      setTimeout(() => {
-        process.kill();
-        reject(new Error('Process execution timed out'));
-      }, this.config.timeout);
-    });
-  }
+/**
+ * Safe object property accessor with fallback value.
+ */
+export function getOrDefault<T>(obj: DataRecord, path: string, defaultValue: T): T {
+  const value = obj[path];
+  return value !== undefined && value !== null ? (value as T) : defaultValue;
 }
