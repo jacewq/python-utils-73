@@ -1,46 +1,48 @@
-/**
- * Configuration interface for application environment settings.
- */
 export interface AppConfig {
-  readonly env: 'development' | 'production' | 'testing';
-  readonly timeout: number;
-  readonly retryAttempts: number;
-  readonly host: string;
+  maxRetries: number;
+  timeoutMs: number;
+  endpoint: string;
 }
 
-/**
- * Default application settings implementation.
- */
-export const defaultConfig: AppConfig = {
-  env: 'development',
-  timeout: 5000,
-  retryAttempts: 3,
-  host: 'localhost',
+export const DEFAULT_CONFIG: AppConfig = {
+  maxRetries: 3,
+  timeoutMs: 5000,
+  endpoint: 'http://localhost:8000',
 };
 
 /**
- * Validates that the provided configuration object matches the schema.
- * @param config - The partial configuration to validate
- * @returns boolean indicating if the config is valid
+ * Validates application configuration to prevent runtime crashes
+ * ensuring numerical bounds and valid URL schemes.
  */
-export function validateConfig(config: Partial<AppConfig>): config is AppConfig {
-  return (
-    typeof config.env === 'string' &&
-    typeof config.timeout === 'number' &&
-    typeof config.retryAttempts === 'number' &&
-    typeof config.host === 'string'
-  );
+export function validateConfig(config: Partial<AppConfig>): AppConfig {
+  const validated = { ...DEFAULT_CONFIG, ...config };
+
+  if (validated.maxRetries < 0 || validated.maxRetries > 10) {
+    throw new Error('Invalid maxRetries: must be between 0 and 10');
+  }
+
+  if (validated.timeoutMs <= 0) {
+    throw new Error('Invalid timeoutMs: must be a positive integer');
+  }
+
+  try {
+    new URL(validated.endpoint);
+  } catch (e) {
+    throw new Error(`Invalid endpoint URL format: ${validated.endpoint}`);
+  }
+
+  return validated;
 }
 
-/**
- * Merges user provided configuration with defaults.
- * @param userConfig - Partial configuration overrides
- * @returns Full validated AppConfig
- */
-export function createConfig(userConfig: Partial<AppConfig>): AppConfig {
-  const merged = { ...defaultConfig, ...userConfig };
-  if (!validateConfig(merged)) {
-    throw new Error('Invalid configuration provided');
+export function getSafeConfig(config: unknown): AppConfig {
+  if (!config || typeof config !== 'object') {
+    return DEFAULT_CONFIG;
   }
-  return merged;
+
+  try {
+    return validateConfig(config as Partial<AppConfig>);
+  } catch (error) {
+    console.warn('Configuration validation failed, reverting to defaults:', error);
+    return DEFAULT_CONFIG;
+  }
 }
