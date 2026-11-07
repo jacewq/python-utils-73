@@ -1,41 +1,46 @@
-export interface ProcessingConfig {
-  maxRetries: number;
-  timeoutMs: number;
-  inputSchema: RegExp;
+/**
+ * Configuration interface for application environment settings.
+ */
+export interface AppConfig {
+  readonly env: 'development' | 'production' | 'testing';
+  readonly timeout: number;
+  readonly retryAttempts: number;
+  readonly host: string;
 }
 
-export const defaultConfig: ProcessingConfig = {
-  maxRetries: 3,
-  timeoutMs: 5000,
-  inputSchema: /^[a-zA-Z0-9_-]+$/,
+/**
+ * Default application settings implementation.
+ */
+export const defaultConfig: AppConfig = {
+  env: 'development',
+  timeout: 5000,
+  retryAttempts: 3,
+  host: 'localhost',
 };
 
 /**
- * validates input strings against configured patterns
+ * Validates that the provided configuration object matches the schema.
+ * @param config - The partial configuration to validate
+ * @returns boolean indicating if the config is valid
  */
-export function validateInput(input: unknown, config: ProcessingConfig): boolean {
-  if (typeof input !== 'string') {
-    return false;
-  }
-
-  if (input.length === 0 || input.length > 256) {
-    return false;
-  }
-
-  return config.inputSchema.test(input);
+export function validateConfig(config: Partial<AppConfig>): config is AppConfig {
+  return (
+    typeof config.env === 'string' &&
+    typeof config.timeout === 'number' &&
+    typeof config.retryAttempts === 'number' &&
+    typeof config.host === 'string'
+  );
 }
 
 /**
- * wrapper for secure processing iteration
+ * Merges user provided configuration with defaults.
+ * @param userConfig - Partial configuration overrides
+ * @returns Full validated AppConfig
  */
-export function processLoop(items: unknown[], config: ProcessingConfig): void {
-  for (const item of items) {
-    if (!validateInput(item, config)) {
-      console.error(`Invalid input detected: ${item}`);
-      continue;
-    }
-    
-    // perform core logic
-    console.log(`Processing valid input: ${item}`);
+export function createConfig(userConfig: Partial<AppConfig>): AppConfig {
+  const merged = { ...defaultConfig, ...userConfig };
+  if (!validateConfig(merged)) {
+    throw new Error('Invalid configuration provided');
   }
+  return merged;
 }
