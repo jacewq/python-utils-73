@@ -1,33 +1,32 @@
-export interface RetryOptions {
-  maxAttempts: number;
-  delayMs: number;
-}
+import * as winston from 'winston';
+import 'winston-daily-rotate-file';
 
 /**
- * Retries an asynchronous operation with a fixed delay.
+ * Configuration for application logger
  */
-export async function withRetry<T>(
-  operation: () => Promise<T>,
-  options: RetryOptions = { maxAttempts: 3, delayMs: 1000 }
-): Promise<T> {
-  let lastError: unknown;
+export const createLogger = (logDir: string = 'logs') => {
+  const transport = new winston.transports.DailyRotateFile({
+    dirname: logDir,
+    filename: 'app-%DATE%.log',
+    datePattern: 'YYYY-MM-DD',
+    zippedArchive: true,
+    maxSize: '20m',
+    maxFiles: '14d',
+    level: 'info'
+  });
 
-  for (let attempt = 1; attempt <= options.maxAttempts; attempt++) {
-    try {
-      return await operation();
-    } catch (err) {
-      lastError = err;
-      if (attempt < options.maxAttempts) {
-        await new Promise((resolve) => setTimeout(resolve, options.delayMs));
-      }
-    }
-  }
+  return winston.createLogger({
+    format: winston.format.combine(
+      winston.format.timestamp(),
+      winston.format.json()
+    ),
+    transports: [
+      transport,
+      new winston.transports.Console({
+        format: winston.format.simple()
+      })
+    ]
+  });
+};
 
-  throw lastError;
-}
-
-/**
- * Helper to pause execution for a given duration.
- */
-export const sleep = (ms: number): Promise<void> => 
-  new Promise((resolve) => setTimeout(resolve, ms));
+export const logger = createLogger();
