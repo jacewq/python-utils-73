@@ -1,36 +1,32 @@
-export class PythonUtilsError extends Error {
-  constructor(public message: string, public code: string, public context?: Record<string, unknown>) {
+export interface PythonExecutionResult {
+  output: string;
+  error: string | null;
+  exitCode: number | null;
+}
+
+export class PythonExecutionError extends Error {
+  constructor(
+    public readonly message: string,
+    public readonly exitCode: number | null,
+    public readonly stderr: string = ''
+  ) {
     super(message);
-    this.name = 'PythonUtilsError';
+    this.name = 'PythonExecutionError';
   }
 }
 
-export type ExecutionResult<T> = 
-  | { success: true; data: T }
-  | { success: false; error: PythonUtilsError };
+export type ValidationResult = 
+  | { success: true; data: unknown }
+  | { success: false; error: string; code: 'INVALID_PATH' | 'TIMEOUT' | 'UNKNOWN' };
 
-export interface ValidationOptions {
-  strict: boolean;
-  timeout?: number;
-}
-
-export const handleExecutionError = (err: unknown, context: string): PythonUtilsError => {
-  if (err instanceof PythonUtilsError) {
+export const handleExecutionFailure = (err: unknown): PythonExecutionError => {
+  if (err instanceof PythonExecutionError) {
     return err;
   }
-  
-  const message = err instanceof Error ? err.message : 'Unknown execution error';
-  return new PythonUtilsError(message, 'EXECUTION_FAILURE', { context });
+  const message = err instanceof Error ? err.message : 'An unknown execution error occurred';
+  return new PythonExecutionError(message, -1);
 };
 
-export const validateResponse = <T>(data: unknown, options: ValidationOptions): T => {
-  if (data === null || data === undefined) {
-    throw new PythonUtilsError('Received null response', 'INVALID_RESPONSE');
-  }
-  
-  if (options.strict && typeof data !== 'object') {
-    throw new PythonUtilsError('Strict validation failed', 'SCHEMA_MISMATCH');
-  }
-
-  return data as T;
+export const isExecutionValid = (result: PythonExecutionResult): boolean => {
+  return result.exitCode === 0 && result.error === null;
 };
