@@ -1,34 +1,41 @@
 /**
- * Python-utils-73 helper functions
+ * Core utilities for data manipulation in python-utils-73
  */
 
-export const sleep = (ms: number): Promise<void> => 
-  new Promise((resolve) => setTimeout(resolve, ms));
+export type JsonValue = string | number | boolean | null | { [key: string]: JsonValue } | JsonValue[];
 
-export const chunkArray = <T>(array: T[], size: number): T[][] => {
-  const result: T[][] = [];
-  for (let i = 0; i < array.length; i += size) {
-    result.push(array.slice(i, i + size));
-  }
-  return result;
-};
+/**
+ * Ensures a value is returned as an array
+ * @param input The value to wrap or return
+ * @returns An array containing the item or the original array
+ */
+export function ensureArray<T>(input: T | T[]): T[] {
+  return Array.isArray(input) ? input : [input];
+}
 
-export const getEnv = (key: string, defaultValue?: string): string => {
-  const value = process.env[key];
-  if (value === undefined) {
-    if (defaultValue !== undefined) return defaultValue;
-    throw new Error(`Environment variable ${key} is missing`);
-  }
-  return value;
-};
+/**
+ * Sanitizes string input by trimming and removing null bytes
+ * @param input The raw string input
+ * @returns A cleaned string ready for processing
+ */
+export function sanitizeString(input: string): string {
+  return input.trim().replace(/\0/g, '');
+}
 
-export const slugify = (str: string): string => {
-  return str
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/(^-|-$)+/g, '');
-};
+/**
+ * Deeply clones a standard JSON-serializable object
+ * @param data The object to clone
+ * @returns A deep copy of the input object
+ */
+export function deepClone<T extends JsonValue>(data: T): T {
+  return JSON.parse(JSON.stringify(data));
+}
 
-export const isDefined = <T>(val: T | null | undefined): val is T => {
-  return val !== null && val !== undefined;
-};
+/**
+ * Checks if an object is empty
+ * @param obj The object to inspect
+ * @returns True if object has no enumerable keys
+ */
+export function isEmpty(obj: Record<string, unknown>): boolean {
+  return Object.keys(obj).length === 0;
+}
