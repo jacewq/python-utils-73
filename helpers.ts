@@ -1,57 +1,69 @@
-export interface RetryOptions {
-  maxRetries?: number;
-  initialDelayMs?: number;
-  backoffFactor?: number;
-  maxDelayMs?: number;
-  shouldRetry?: (error: unknown) => boolean;
+export interface ProcessItem {
+  id: string;
+  payload: Record<string, unknown>;
+  retries?: number;
+}
+
+export interface ValidationRule {
+  field: string;
+  required?: boolean;
+  type?: 'string' | 'number' | 'boolean' | 'object';
+}
+
+export interface ProcessResult {
+  processed: ProcessItem[];
+  invalid: { item: ProcessItem; reason: string }[];
 }
 
 /**
- * Executes an asynchronous network task with exponential backoff retry logic.
+ * Validates a single item payload against defined rules.
  */
-export async function retryAsync<T>(
-  fn: () => Promise<T>,
-  options: RetryOptions = {}
-): Promise<T> {
-  const {
-    maxRetries = 3,
-    initialDelayMs = 500,
-    backoffFactor = 2,
-    maxDelayMs = 10000,
-    shouldRetry = () => true,
-  } = options;
+function validateItem(item: ProcessItem, rules: ValidationRule[]): string | null {
+  if (!item || typeof item !== 'object') {
+    return 'Item must be a valid object';
+  }
+  if (!item.id || typeof item.id !== 'string') {
+    return 'Item missing valid string id';
+  }
+  if (!item.payload || typeof item.payload !== 'object') {
+    return 'Item payload must be an object';
+  }
 
-  let attempt = 0;
-  let currentDelay = initialDelayMs;
-
-  while (true) {
-    try {
-      return await fn();
-    } catch (error) {
-      attempt++;
-
-      if (attempt > maxRetries || !shouldRetry(error)) {
-        throw error;
-      }
-
-      await new Promise((resolve) => setTimeout(resolve, currentDelay));
-      currentDelay = Math.min(currentDelay * backoffFactor, maxDelayMs);
+  for (const rule of rules) {
+    const value = item.payload[rule.field];
+    if (rule.required && (value === undefined || value === null)) {
+      return `Missing required field: ${rule.field}`;
+    }
+    if (value !== undefined && value !== null && rule.type && typeof value !== rule.type) {
+      return `Field ${rule.field} must be of type ${rule.type}`;
     }
   }
+  return null;
 }
 
 /**
- * Utility helper to determine if an error is likely a transient network error.
+ * Main processing loop with input validation for incoming batch items.
  */
-export function isTransientNetworkError(error: unknown): boolean {
-  if (error instanceof Error) {
-    const message = error.message.toLowerCase();
-    return (
-      message.includes('network') ||
-      message.includes('fetch failed') ||
-      message.includes('timeout') ||
-      message.includes('econnreset')
-    );
+export function processBatchInputs(
+  items: ProcessItem[],
+  rules: ValidationRule[] = []
+): ProcessResult {
+  const processed: ProcessItem[] = [];
+  const invalid: { item: ProcessItem; reason: string }[] = [];
+
+  for (const item of items) {
+    const validationError = validateItem(item, rules);
+    if (validationError) {
+      invalid.push({ item, reason: validationError });
+      continue;
+    }
+
+    const sanitizedPayload = { ...item.payload, _validatedAt: Date.now() };
+    processed.push({
+      ...item,
+      payload: sanitizedPayload,
+    });
   }
-  return false;
+
+  return { processed, invalid };
 }
