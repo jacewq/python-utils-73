@@ -1,33 +1,58 @@
-import * as winston from 'winston';
-import 'winston-daily-rotate-file';
-
 /**
- * Configures a rotating file logger for system operations
+ * LRU Cache Service for optimizing repetitive utility computations
+ * in high-throughput workflows.
  */
-export const createLogger = (serviceName: string) => {
-  const transport = new winston.transports.DailyRotateFile({
-    filename: `logs/${serviceName}-%DATE%.log`,
-    datePattern: 'YYYY-MM-DD',
-    zippedArchive: true,
-    maxSize: '20m',
-    maxFiles: '14d'
-  });
+export class LRUCacheService<K, V> {
+  private cache: Map<K, V>;
+  private readonly capacity: number;
 
-  return winston.createLogger({
-    level: 'info',
-    format: winston.format.combine(
-      winston.format.timestamp(),
-      winston.format.json()
-    ),
-    transports: [
-      transport,
-      new winston.transports.Console({
-        format: winston.format.simple()
-      })
-    ]
-  });
-};
+  constructor(capacity: number = 256) {
+    if (capacity <= 0) {
+      throw new Error('Capacity must be a positive integer');
+    }
+    this.capacity = capacity;
+    this.cache = new Map<K, V>();
+  }
 
-// Usage example:
-// const logger = createLogger('data-processor');
-// logger.info('service initialized successfully');
+  public get(key: K): V | undefined {
+    if (!this.cache.has(key)) {
+      return undefined;
+    }
+    const value = this.cache.get(key)!;
+    this.cache.delete(key);
+    this.cache.set(key, value);
+    return value;
+  }
+
+  public set(key: K, value: V): void {
+    if (this.cache.has(key)) {
+      this.cache.delete(key);
+    } else if (this.cache.size >= this.capacity) {
+      const oldestKey = this.cache.keys().next().value;
+      if (oldestKey !== undefined) {
+        this.cache.delete(oldestKey);
+      }
+    }
+    this.cache.set(key, value);
+  }
+
+  public getOrCompute(key: K, computeFn: (k: K) => V): V {
+    const cached = this.get(key);
+    if (cached !== undefined) {
+      return cached;
+    }
+    const computed = computeFn(key);
+    this.set(key, computed);
+    return computed;
+  }
+
+  public clear(): void {
+    this.cache.clear();
+  }
+
+  public get size(): number {
+    return this.cache.size;
+  }
+}
+
+export const globalMemoCache = new LRUCacheService<string, unknown>(512);
