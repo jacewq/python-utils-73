@@ -1,69 +1,33 @@
-export interface ProcessItem {
-  id: string;
-  payload: Record<string, unknown>;
-  retries?: number;
-}
-
-export interface ValidationRule {
-  field: string;
-  required?: boolean;
-  type?: 'string' | 'number' | 'boolean' | 'object';
-}
-
-export interface ProcessResult {
-  processed: ProcessItem[];
-  invalid: { item: ProcessItem; reason: string }[];
-}
-
 /**
- * Validates a single item payload against defined rules.
+ * Common utilities for python-utils-73
  */
-function validateItem(item: ProcessItem, rules: ValidationRule[]): string | null {
-  if (!item || typeof item !== 'object') {
-    return 'Item must be a valid object';
-  }
-  if (!item.id || typeof item.id !== 'string') {
-    return 'Item missing valid string id';
-  }
-  if (!item.payload || typeof item.payload !== 'object') {
-    return 'Item payload must be an object';
-  }
 
-  for (const rule of rules) {
-    const value = item.payload[rule.field];
-    if (rule.required && (value === undefined || value === null)) {
-      return `Missing required field: ${rule.field}`;
+export const sleep = (ms: number): Promise<void> => 
+  new Promise((resolve) => setTimeout(resolve, ms));
+
+export const capitalize = (str: string): string => 
+  str.charAt(0).toUpperCase() + str.slice(1);
+
+export const groupBy = <T, K extends keyof any>(
+  list: T[],
+  getKey: (item: T) => K
+): Record<K, T[]> =>
+  list.reduce((acc, item) => {
+    const key = getKey(item);
+    if (!acc[key]) {
+      acc[key] = [];
     }
-    if (value !== undefined && value !== null && rule.type && typeof value !== rule.type) {
-      return `Field ${rule.field} must be of type ${rule.type}`;
-    }
-  }
-  return null;
-}
+    acc[key].push(item);
+    return acc;
+  }, {} as Record<K, T[]>);
 
-/**
- * Main processing loop with input validation for incoming batch items.
- */
-export function processBatchInputs(
-  items: ProcessItem[],
-  rules: ValidationRule[] = []
-): ProcessResult {
-  const processed: ProcessItem[] = [];
-  const invalid: { item: ProcessItem; reason: string }[] = [];
+export const clamp = (num: number, min: number, max: number): number =>
+  Math.min(Math.max(num, min), max);
 
-  for (const item of items) {
-    const validationError = validateItem(item, rules);
-    if (validationError) {
-      invalid.push({ item, reason: validationError });
-      continue;
-    }
+export const chunk = <T>(arr: T[], size: number): T[][] =>
+  Array.from({ length: Math.ceil(arr.length / size) }, (_, i) =>
+    arr.slice(i * size, i * size + size)
+  );
 
-    const sanitizedPayload = { ...item.payload, _validatedAt: Date.now() };
-    processed.push({
-      ...item,
-      payload: sanitizedPayload,
-    });
-  }
-
-  return { processed, invalid };
-}
+export const isDefined = <T>(val: T | null | undefined): val is T => 
+  val !== null && val !== undefined;
