@@ -1,39 +1,33 @@
-export class ServiceError extends Error {
-  constructor(public message: string, public code: string, public status?: number) {
-    super(message);
-    this.name = 'ServiceError';
-  }
-}
+import * as winston from 'winston';
+import 'winston-daily-rotate-file';
 
-export const executeSafe = async <T>(operation: () => Promise<T>): Promise<T> => {
-  try {
-    return await operation();
-  } catch (error) {
-    if (error instanceof ServiceError) {
-      throw error;
-    }
+/**
+ * Configures a rotating file logger for system operations
+ */
+export const createLogger = (serviceName: string) => {
+  const transport = new winston.transports.DailyRotateFile({
+    filename: `logs/${serviceName}-%DATE%.log`,
+    datePattern: 'YYYY-MM-DD',
+    zippedArchive: true,
+    maxSize: '20m',
+    maxFiles: '14d'
+  });
 
-    if (error instanceof Error) {
-      throw new ServiceError(error.message, 'INTERNAL_ERROR', 500);
-    }
-
-    throw new ServiceError('An unexpected error occurred', 'UNKNOWN_ERROR', 500);
-  }
+  return winston.createLogger({
+    level: 'info',
+    format: winston.format.combine(
+      winston.format.timestamp(),
+      winston.format.json()
+    ),
+    transports: [
+      transport,
+      new winston.transports.Console({
+        format: winston.format.simple()
+      })
+    ]
+  });
 };
 
-export const validateResponse = (data: unknown): void => {
-  if (data === null || data === undefined) {
-    throw new ServiceError('Empty response received', 'EMPTY_RESPONSE', 204);
-  }
-};
-
-export const processTask = async <T>(task: () => Promise<T>): Promise<T | null> => {
-  try {
-    const result = await executeSafe(task);
-    validateResponse(result);
-    return result;
-  } catch (err) {
-    console.error(`[ServiceTask] Error: ${(err as ServiceError).message}`);
-    return null;
-  }
-};
+// Usage example:
+// const logger = createLogger('data-processor');
+// logger.info('service initialized successfully');
