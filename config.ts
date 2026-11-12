@@ -1,42 +1,31 @@
-/**
- * Configuration schema and environment defaults for python-utils-73
- */
-
 export interface AppConfig {
-  readonly maxRetries: number;
-  readonly timeoutMs: number;
-  readonly environment: 'development' | 'production' | 'testing';
-  readonly logPath: string | null;
+  host: string;
+  port: number;
+  debug: boolean;
 }
 
-/**
- * Default application settings based on process environment variables
- */
-export const defaultConfig: AppConfig = {
-  maxRetries: parseInt(process.env.MAX_RETRIES || '3', 10),
-  timeoutMs: parseInt(process.env.TIMEOUT_MS || '5000', 10),
-  environment: (process.env.NODE_ENV as AppConfig['environment']) || 'development',
-  logPath: process.env.LOG_PATH || null,
+const DEFAULT_CONFIG: AppConfig = {
+  host: 'localhost',
+  port: 8080,
+  debug: false,
 };
 
 /**
- * Validates that current configuration is operational
- * @param config - The application configuration to validate
- * @returns boolean indication of validity
+ * Loads configuration with default fallback
+ * @param overrides Partial configuration options
  */
-export function validateConfig(config: AppConfig): boolean {
-  return (
-    config.maxRetries >= 0 &&
-    config.timeoutMs > 0 &&
-    ['development', 'production', 'testing'].includes(config.environment)
-  );
+export function loadConfig(overrides: Partial<AppConfig> = {}): AppConfig {
+  return {
+    ...DEFAULT_CONFIG,
+    ...overrides,
+  };
 }
 
 /**
- * Retrieves a typed environment variable with fallback
- * @param key - The environment variable name
- * @param defaultValue - The fallback value
+ * Validates presence of critical config values
  */
-export const getEnv = (key: string, defaultValue: string): string => {
-  return process.env[key] ?? defaultValue;
-};
+export function validateConfig(config: AppConfig): void {
+  if (config.port < 1 || config.port > 65535) {
+    throw new Error(`Invalid port: ${config.port}`);
+  }
+}
