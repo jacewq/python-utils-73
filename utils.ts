@@ -1,44 +1,42 @@
-export interface MemoizedResult<T> {
-  value: T;
-  timestamp: number;
+/**
+ * Common Python-style utility functions for TypeScript
+ */
+
+/**
+ * Mimics Python's range(start, stop, step)
+ */
+export function range(start: number, stop?: number, step: number = 1): number[] {
+  const result: number[] = [];
+  const end = stop === undefined ? start : stop;
+  const begin = stop === undefined ? 0 : start;
+
+  for (let i = begin; step > 0 ? i < end : i > end; i += step) {
+    result.push(i);
+  }
+  return result;
 }
 
 /**
- * Optimized cache wrapper for intensive data processing
- * Uses simple timestamp-based TTL for memory efficiency
+ * Chunks an array into smaller sub-arrays of size n
  */
-export function memoize<T, Args extends any[]>( 
-  fn: (...args: Args) => T, 
-  ttl: number = 5000
-): (...args: Args) => T {
-  const cache = new Map<string, MemoizedResult<T>>();
-
-  return (...args: Args): T => {
-    const key = JSON.stringify(args);
-    const now = Date.now();
-    const cached = cache.get(key);
-
-    if (cached && (now - cached.timestamp) < ttl) {
-      return cached.value;
-    }
-
-    const result = fn(...args);
-    cache.set(key, { value: result, timestamp: now });
-
-    // Housekeeping to prevent memory leaks
-    if (cache.size > 1000) {
-      const firstKey = cache.keys().next().value;
-      cache.delete(firstKey);
-    }
-
-    return result;
-  };
+export function chunk<T>(array: T[], size: number): T[][] {
+  return Array.from({ length: Math.ceil(array.length / size) }, (_, i) =>
+    array.slice(i * size, i * size + size)
+  );
 }
 
-export const heavyCompute = memoize((input: number): number => {
-  let result = 0;
-  for (let i = 0; i < 1e6; i++) {
-    result += Math.sqrt(input * i);
-  }
-  return result;
-});
+/**
+ * Safely accesses nested object properties
+ */
+export function get(obj: Record<string, any>, path: string, defaultValue?: any): any {
+  return path.split('.').reduce((acc, part) => acc && acc[part], obj) ?? defaultValue;
+}
+
+/**
+ * Removes null or undefined values from an object
+ */
+export function compact<T extends object>(obj: T): Partial<T> {
+  return Object.fromEntries(
+    Object.entries(obj).filter(([_, v]) => v != null)
+  ) as Partial<T>;
+}
