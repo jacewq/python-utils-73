@@ -1,33 +1,38 @@
 /**
- * Common utilities for python-utils-73
+ * Utility functions for data transformation and validation
  */
 
-export const sleep = (ms: number): Promise<void> => 
-  new Promise((resolve) => setTimeout(resolve, ms));
+export type DataRecord = Record<string, unknown>;
 
-export const capitalize = (str: string): string => 
-  str.charAt(0).toUpperCase() + str.slice(1);
-
-export const groupBy = <T, K extends keyof any>(
-  list: T[],
-  getKey: (item: T) => K
-): Record<K, T[]> =>
-  list.reduce((acc, item) => {
-    const key = getKey(item);
-    if (!acc[key]) {
-      acc[key] = [];
+/**
+ * Flattens nested object keys into a single depth record
+ */
+export function flattenObject(obj: DataRecord, prefix = ''): DataRecord {
+  return Object.keys(obj).reduce((acc, key) => {
+    const pre = prefix.length ? `${prefix}.` : '';
+    if (typeof obj[key] === 'object' && obj[key] !== null && !Array.isArray(obj[key])) {
+      Object.assign(acc, flattenObject(obj[key] as DataRecord, pre + key));
+    } else {
+      acc[pre + key] = obj[key];
     }
-    acc[key].push(item);
     return acc;
-  }, {} as Record<K, T[]>);
+  }, {} as DataRecord);
+}
 
-export const clamp = (num: number, min: number, max: number): number =>
-  Math.min(Math.max(num, min), max);
+/**
+ * Safely extracts value from nested object using dot notation
+ */
+export function getDeepValue(obj: DataRecord, path: string): unknown {
+  return path.split('.').reduce((acc, part) => {
+    return acc && typeof acc === 'object' ? (acc as DataRecord)[part] : undefined;
+  }, obj as unknown);
+}
 
-export const chunk = <T>(arr: T[], size: number): T[][] =>
-  Array.from({ length: Math.ceil(arr.length / size) }, (_, i) =>
-    arr.slice(i * size, i * size + size)
+/**
+ * Filters object properties by a provided predicate
+ */
+export function filterObject(obj: DataRecord, predicate: (val: unknown) => boolean): DataRecord {
+  return Object.fromEntries(
+    Object.entries(obj).filter(([, value]) => predicate(value))
   );
-
-export const isDefined = <T>(val: T | null | undefined): val is T => 
-  val !== null && val !== undefined;
+}
