@@ -1,38 +1,32 @@
-/**
- * Utility functions for data transformation and validation
- */
+export interface InputData {
+  payload: string;
+  version: number;
+}
 
-export type DataRecord = Record<string, unknown>;
+/**
+ * Validates input payload and version for processing
+ */
+export function validateInput(data: any): data is InputData {
+  if (!data || typeof data !== 'object') return false;
+  if (typeof data.payload !== 'string' || data.payload.trim() === '') return false;
+  if (typeof data.version !== 'number' || data.version < 1) return false;
+  return true;
+}
 
 /**
- * Flattens nested object keys into a single depth record
+ * Main loop processor with integrated validation
  */
-export function flattenObject(obj: DataRecord, prefix = ''): DataRecord {
-  return Object.keys(obj).reduce((acc, key) => {
-    const pre = prefix.length ? `${prefix}.` : '';
-    if (typeof obj[key] === 'object' && obj[key] !== null && !Array.isArray(obj[key])) {
-      Object.assign(acc, flattenObject(obj[key] as DataRecord, pre + key));
-    } else {
-      acc[pre + key] = obj[key];
+export function processLoop(items: any[]): void {
+  for (const item of items) {
+    if (!validateInput(item)) {
+      console.error('Invalid input encountered, skipping item:', item);
+      continue;
     }
-    return acc;
-  }, {} as DataRecord);
-}
 
-/**
- * Safely extracts value from nested object using dot notation
- */
-export function getDeepValue(obj: DataRecord, path: string): unknown {
-  return path.split('.').reduce((acc, part) => {
-    return acc && typeof acc === 'object' ? (acc as DataRecord)[part] : undefined;
-  }, obj as unknown);
-}
-
-/**
- * Filters object properties by a provided predicate
- */
-export function filterObject(obj: DataRecord, predicate: (val: unknown) => boolean): DataRecord {
-  return Object.fromEntries(
-    Object.entries(obj).filter(([, value]) => predicate(value))
-  );
+    try {
+      console.log(`Processing payload: ${item.payload} (v${item.version})`);
+    } catch (err) {
+      console.error('Runtime error during processing:', err);
+    }
+  }
 }
