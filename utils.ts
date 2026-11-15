@@ -1,42 +1,37 @@
-/**
- * Common Python-style utility functions for TypeScript
- */
+import * as fs from 'fs';
+import * as path from 'path';
 
 /**
- * Mimics Python's range(start, stop, step)
+ * Minimal rotating logger for python-utils-73
  */
-export function range(start: number, stop?: number, step: number = 1): number[] {
-  const result: number[] = [];
-  const end = stop === undefined ? start : stop;
-  const begin = stop === undefined ? 0 : start;
+export interface LoggerOptions {
+  logDir: string;
+  maxSizeBytes: number;
+}
 
-  for (let i = begin; step > 0 ? i < end : i > end; i += step) {
-    result.push(i);
+export const setupLogger = (options: LoggerOptions) => {
+  const logFile = path.join(options.logDir, 'app.log');
+  
+  if (!fs.existsSync(options.logDir)) {
+    fs.mkdirSync(options.logDir, { recursive: true });
   }
-  return result;
-}
 
-/**
- * Chunks an array into smaller sub-arrays of size n
- */
-export function chunk<T>(array: T[], size: number): T[][] {
-  return Array.from({ length: Math.ceil(array.length / size) }, (_, i) =>
-    array.slice(i * size, i * size + size)
-  );
-}
+  return (message: string) => {
+    const timestamp = new Date().toISOString();
+    const logEntry = `[${timestamp}] ${message}\n`;
 
-/**
- * Safely accesses nested object properties
- */
-export function get(obj: Record<string, any>, path: string, defaultValue?: any): any {
-  return path.split('.').reduce((acc, part) => acc && acc[part], obj) ?? defaultValue;
-}
+    if (fs.existsSync(logFile)) {
+      const stats = fs.statSync(logFile);
+      if (stats.size > options.maxSizeBytes) {
+        const backupPath = `${logFile}.${Date.now()}.old`;
+        fs.renameSync(logFile, backupPath);
+      }
+    }
 
-/**
- * Removes null or undefined values from an object
- */
-export function compact<T extends object>(obj: T): Partial<T> {
-  return Object.fromEntries(
-    Object.entries(obj).filter(([_, v]) => v != null)
-  ) as Partial<T>;
-}
+    fs.appendFileSync(logFile, logEntry);
+  };
+};
+
+// Usage Example:
+// const log = setupLogger({ logDir: './logs', maxSizeBytes: 1024 * 1024 });
+// log('Application started');
