@@ -1,37 +1,52 @@
-import * as fs from 'fs';
-import * as path from 'path';
-
 /**
- * Minimal rotating logger for python-utils-73
+ * Safely accesses nested properties in an object using a dot-delimited path string
+ * or an array of key segments, returning a fallback value if the path does not exist.
  */
-export interface LoggerOptions {
-  logDir: string;
-  maxSizeBytes: number;
-}
-
-export const setupLogger = (options: LoggerOptions) => {
-  const logFile = path.join(options.logDir, 'app.log');
-  
-  if (!fs.existsSync(options.logDir)) {
-    fs.mkdirSync(options.logDir, { recursive: true });
+export function getNestedValue<T = unknown>(
+  obj: Record<string, any> | null | undefined,
+  path: string | string[],
+  defaultValue?: T
+): T | undefined {
+  if (obj === null || obj === undefined) {
+    return defaultValue;
   }
 
-  return (message: string) => {
-    const timestamp = new Date().toISOString();
-    const logEntry = `[${timestamp}] ${message}\n`;
+  const keys = Array.isArray(path) ? path : path.split('.');
+  let current: any = obj;
 
-    if (fs.existsSync(logFile)) {
-      const stats = fs.statSync(logFile);
-      if (stats.size > options.maxSizeBytes) {
-        const backupPath = `${logFile}.${Date.now()}.old`;
-        fs.renameSync(logFile, backupPath);
-      }
+  for (const key of keys) {
+    if (current === null || current === undefined || typeof current !== 'object') {
+      return defaultValue;
     }
+    current = current[key];
+  }
 
-    fs.appendFileSync(logFile, logEntry);
-  };
-};
+  return current !== undefined ? (current as T) : defaultValue;
+}
 
-// Usage Example:
-// const log = setupLogger({ logDir: './logs', maxSizeBytes: 1024 * 1024 });
-// log('Application started');
+/**
+ * Flattens a deeply nested object into a single-level object with dot-separated key paths.
+ */
+export function flattenObject(
+  obj: Record<string, any>,
+  prefix = ''
+): Record<string, any> {
+  const result: Record<string, any> = {};
+
+  for (const [key, value] of Object.entries(obj)) {
+    const newKey = prefix ? `${prefix}.${key}` : key;
+
+    if (
+      value !== null &&
+      typeof value === 'object' &&
+      !Array.isArray(value) &&
+      Object.keys(value).length > 0
+    ) {
+      Object.assign(result, flattenObject(value, newKey));
+    } else {
+      result[newKey] = value;
+    }
+  }
+
+  return result;
+}
