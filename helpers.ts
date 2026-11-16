@@ -1,32 +1,29 @@
-export interface InputData {
-  payload: string;
-  version: number;
+export interface RetryOptions {
+  attempts: number;
+  delay: number;
 }
 
 /**
- * Validates input payload and version for processing
+ * Executes a function with exponential backoff retry logic.
  */
-export function validateInput(data: any): data is InputData {
-  if (!data || typeof data !== 'object') return false;
-  if (typeof data.payload !== 'string' || data.payload.trim() === '') return false;
-  if (typeof data.version !== 'number' || data.version < 1) return false;
-  return true;
-}
+export async function withRetry<T>(
+  operation: () => Promise<T>,
+  options: RetryOptions = { attempts: 3, delay: 1000 }
+): Promise<T> {
+  let lastError: Error;
 
-/**
- * Main loop processor with integrated validation
- */
-export function processLoop(items: any[]): void {
-  for (const item of items) {
-    if (!validateInput(item)) {
-      console.error('Invalid input encountered, skipping item:', item);
-      continue;
-    }
-
+  for (let i = 0; i < options.attempts; i++) {
     try {
-      console.log(`Processing payload: ${item.payload} (v${item.version})`);
+      return await operation();
     } catch (err) {
-      console.error('Runtime error during processing:', err);
+      lastError = err instanceof Error ? err : new Error(String(err));
+      
+      if (i < options.attempts - 1) {
+        const backoff = options.delay * Math.pow(2, i);
+        await new Promise((resolve) => setTimeout(resolve, backoff));
+      }
     }
   }
+
+  throw lastError!;
 }
