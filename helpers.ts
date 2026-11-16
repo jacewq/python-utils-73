@@ -1,29 +1,46 @@
-export interface RetryOptions {
-  attempts: number;
-  delay: number;
+/**
+ * Type definitions for common Python-like utility operations
+ */
+
+export type Dict<T = any> = Record<string, T>;
+
+/**
+ * Mimics Python's range function
+ */
+export function range(start: number, stop?: number, step: number = 1): number[] {
+  if (stop === undefined) {
+    stop = start;
+    start = 0;
+  }
+  const result: number[] = [];
+  for (let i = start; i < stop; i += step) {
+    result.push(i);
+  }
+  return result;
 }
 
 /**
- * Executes a function with exponential backoff retry logic.
+ * Checks if a value is defined and not null
  */
-export async function withRetry<T>(
-  operation: () => Promise<T>,
-  options: RetryOptions = { attempts: 3, delay: 1000 }
-): Promise<T> {
-  let lastError: Error;
+export function isPresent<T>(value: T | null | undefined): value is T {
+  return value !== null && value !== undefined;
+}
 
-  for (let i = 0; i < options.attempts; i++) {
-    try {
-      return await operation();
-    } catch (err) {
-      lastError = err instanceof Error ? err : new Error(String(err));
-      
-      if (i < options.attempts - 1) {
-        const backoff = options.delay * Math.pow(2, i);
-        await new Promise((resolve) => setTimeout(resolve, backoff));
-      }
-    }
+/**
+ * Simple implementation of Python-like zip
+ */
+export function zip<T, U>(arr1: T[], arr2: U[]): [T, U][] {
+  const length = Math.min(arr1.length, arr2.length);
+  const result: [T, U][] = [];
+  for (let i = 0; i < length; i++) {
+    result.push([arr1[i], arr2[i]]);
   }
+  return result;
+}
 
-  throw lastError!;
+/**
+ * Safely access nested object properties
+ */
+export function getDeep(obj: Dict, path: string[]): any {
+  return path.reduce((acc, key) => (acc && acc[key] !== undefined ? acc[key] : undefined), obj);
 }
