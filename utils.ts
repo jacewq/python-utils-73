@@ -1,52 +1,43 @@
 /**
- * Safely accesses nested properties in an object using a dot-delimited path string
- * or an array of key segments, returning a fallback value if the path does not exist.
+ * Utility for sanitizing and formatting mixed data types
  */
-export function getNestedValue<T = unknown>(
-  obj: Record<string, any> | null | undefined,
-  path: string | string[],
-  defaultValue?: T
-): T | undefined {
-  if (obj === null || obj === undefined) {
-    return defaultValue;
-  }
 
-  const keys = Array.isArray(path) ? path : path.split('.');
-  let current: any = obj;
+export type DataValue = string | number | boolean | null | undefined;
 
-  for (const key of keys) {
-    if (current === null || current === undefined || typeof current !== 'object') {
-      return defaultValue;
-    }
-    current = current[key];
-  }
-
-  return current !== undefined ? (current as T) : defaultValue;
+/**
+ * safely extracts value from a nested object path
+ */
+export function getNestedValue<T>(obj: Record<string, any>, path: string): T | undefined {
+  return path.split('.').reduce((acc, part) => acc && acc[part], obj) as T | undefined;
 }
 
 /**
- * Flattens a deeply nested object into a single-level object with dot-separated key paths.
+ * cleans array of items by removing nullish values
  */
-export function flattenObject(
-  obj: Record<string, any>,
-  prefix = ''
-): Record<string, any> {
-  const result: Record<string, any> = {};
+export function cleanArray<T>(arr: (T | null | undefined)[]): T[] {
+  return arr.filter((item): item is T => item !== null && item !== undefined);
+}
 
-  for (const [key, value] of Object.entries(obj)) {
-    const newKey = prefix ? `${prefix}.${key}` : key;
-
-    if (
-      value !== null &&
-      typeof value === 'object' &&
-      !Array.isArray(value) &&
-      Object.keys(value).length > 0
-    ) {
-      Object.assign(result, flattenObject(value, newKey));
-    } else {
-      result[newKey] = value;
-    }
+/**
+ * normalizes input to a standard string format
+ */
+export function toSafeString(value: DataValue, fallback = ''): string {
+  if (value === null || value === undefined) {
+    return fallback;
   }
+  return String(value).trim();
+}
 
-  return result;
+/**
+ * groups items by a specific key
+ */
+export function groupBy<T>(items: T[], key: keyof T): Record<string, T[]> {
+  return items.reduce((acc, item) => {
+    const groupKey = String(item[key]);
+    if (!acc[groupKey]) {
+      acc[groupKey] = [];
+    }
+    acc[groupKey].push(item);
+    return acc;
+  }, {} as Record<string, T[]>);
 }
