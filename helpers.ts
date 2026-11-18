@@ -1,46 +1,43 @@
 /**
- * Type definitions for common Python-like utility operations
+ * Safely parses JSON strings with fallback defaults
+ * to handle malformed input gracefully.
  */
-
-export type Dict<T = any> = Record<string, T>;
-
-/**
- * Mimics Python's range function
- */
-export function range(start: number, stop?: number, step: number = 1): number[] {
-  if (stop === undefined) {
-    stop = start;
-    start = 0;
+export function safeParseJson<T>(input: string, defaultValue: T): T {
+  try {
+    return JSON.parse(input) as T;
+  } catch (error) {
+    console.error('Failed to parse JSON string:', error);
+    return defaultValue;
   }
-  const result: number[] = [];
-  for (let i = start; i < stop; i += step) {
-    result.push(i);
-  }
-  return result;
 }
 
 /**
- * Checks if a value is defined and not null
+ * Validates object property existence to prevent
+ * undefined runtime access errors.
  */
-export function isPresent<T>(value: T | null | undefined): value is T {
-  return value !== null && value !== undefined;
-}
-
-/**
- * Simple implementation of Python-like zip
- */
-export function zip<T, U>(arr1: T[], arr2: U[]): [T, U][] {
-  const length = Math.min(arr1.length, arr2.length);
-  const result: [T, U][] = [];
-  for (let i = 0; i < length; i++) {
-    result.push([arr1[i], arr2[i]]);
+export function getNestedProperty<T, K extends keyof T>(obj: T | null | undefined, key: K): T[K] | undefined {
+  if (!obj || typeof obj !== 'object') {
+    return undefined;
   }
-  return result;
+  return obj[key];
 }
 
 /**
- * Safely access nested object properties
+ * Wrapper for array operations to avoid index out
+ * of bounds exceptions on empty structures.
  */
-export function getDeep(obj: Dict, path: string[]): any {
-  return path.reduce((acc, key) => (acc && acc[key] !== undefined ? acc[key] : undefined), obj);
+export function safeGetElement<T>(arr: T[], index: number): T | null {
+  if (index < 0 || index >= arr.length) {
+    return null;
+  }
+  return arr[index];
+}
+
+/**
+ * Normalizes input strings for filesystem operations
+ * to avoid illegal character injection.
+ */
+export function sanitizePathSegment(segment: string): string {
+  if (typeof segment !== 'string') return 'unknown';
+  return segment.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
 }
