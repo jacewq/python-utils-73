@@ -1,36 +1,42 @@
-import * as fs from 'fs';
-import * as path from 'path';
-
+/**
+ * Configuration interface for application environment settings.
+ */
 export interface AppConfig {
-  timeout: number;
-  retries: number;
-  debug: boolean;
+  readonly env: 'development' | 'production' | 'testing';
+  readonly timeout: number;
+  readonly retryAttempts: number;
 }
 
-const DEFAULT_CONFIG: AppConfig = {
-  timeout: 3000,
-  retries: 3,
-  debug: false,
+/**
+ * Default application configuration constants.
+ */
+export const DEFAULT_CONFIG: AppConfig = {
+  env: 'development',
+  timeout: 5000,
+  retryAttempts: 3,
 };
 
 /**
- * Loads configuration from a JSON file with deep merging against defaults.
+ * Validates provided configuration object fields.
+ * 
+ * @param config - The application configuration to validate
+ * @returns boolean indicating if the configuration is valid
  */
-export function loadConfig(configPath: string): AppConfig {
-  try {
-    if (!fs.existsSync(configPath)) {
-      return { ...DEFAULT_CONFIG };
-    }
+export function isValidConfig(config: AppConfig): boolean {
+  if (config.timeout < 0) return false;
+  if (config.retryAttempts < 0) return false;
+  return true;
+}
 
-    const fileContent = fs.readFileSync(path.resolve(configPath), 'utf-8');
-    const parsed: Partial<AppConfig> = JSON.parse(fileContent);
-
-    return {
-      ...DEFAULT_CONFIG,
-      ...parsed,
-    };
-  } catch (error) {
-    console.error(`Failed to load config at ${configPath}, using defaults:`, error);
-    return { ...DEFAULT_CONFIG };
-  }
+/**
+ * Factory function to generate merged configuration.
+ * 
+ * @param overrides - Partial configuration to merge with defaults
+ * @returns The final merged AppConfig object
+ */
+export function createConfig(overrides: Partial<AppConfig>): AppConfig {
+  return {
+    ...DEFAULT_CONFIG,
+    ...overrides,
+  };
 }
