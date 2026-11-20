@@ -1,44 +1,47 @@
-/**
- * General utility service for data transformation
- */
-
-export interface DataMap {
-  [key: string]: unknown;
+export interface DataProcessor<T> {
+  transform: (data: unknown) => T | null;
+  validate: (data: T) => boolean;
 }
 
 /**
- * Safely deep cleans an object by removing undefined/null values
+ * Safely processes input data using a provided schema or transformation logic
  */
-export function cleanObject<T extends DataMap>(obj: T): Partial<T> {
-  return Object.entries(obj).reduce((acc, [key, value]) => {
-    if (value !== undefined && value !== null) {
-      acc[key as keyof T] = value as T[keyof T];
+export function processData<T>(
+  input: unknown,
+  processor: DataProcessor<T>,
+  fallback: T
+): T {
+  try {
+    const transformed = processor.transform(input);
+    if (transformed !== null && processor.validate(transformed)) {
+      return transformed;
     }
+  } catch (error) {
+    console.error('Data processing failure:', error);
+  }
+  return fallback;
+}
+
+/**
+ * Normalizes object keys to lowercase for consistent data access
+ */
+export function normalizeKeys<T extends Record<string, any>>(obj: T): Record<string, any> {
+  return Object.keys(obj).reduce((acc, key) => {
+    acc[key.toLowerCase()] = obj[key];
     return acc;
-  }, {} as Partial<T>);
+  }, {} as Record<string, any>);
 }
 
 /**
- * Group an array of objects by a specific key
+ * Batch grouping utility for array data reduction
  */
-export function groupBy<T extends DataMap>(items: T[], key: keyof T): Record<string, T[]> {
-  return items.reduce((acc, item) => {
-    const groupKey = String(item[key]);
-    if (!acc[groupKey]) {
-      acc[groupKey] = [];
+export function groupBy<T>(arr: T[], key: keyof T): Record<string, T[]> {
+  return arr.reduce((acc, item) => {
+    const group = String(item[key]);
+    if (!acc[group]) {
+      acc[group] = [];
     }
-    acc[groupKey].push(item);
+    acc[group].push(item);
     return acc;
   }, {} as Record<string, T[]>);
-}
-
-/**
- * Safely parses JSON with fallback
- */
-export function safeJsonParse<T>(json: string, fallback: T): T {
-  try {
-    return JSON.parse(json) as T;
-  } catch {
-    return fallback;
-  }
 }
