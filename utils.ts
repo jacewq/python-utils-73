@@ -1,43 +1,43 @@
 /**
- * Utility for sanitizing and formatting mixed data types
+ * Deeply cleans an object by removing null or undefined values.
+ * Useful for preparing payloads for API requests.
  */
+export function cleanObject<T extends Record<string, any>>(obj: T): Partial<T> {
+  const result: any = {};
 
-export type DataValue = string | number | boolean | null | undefined;
+  for (const key in obj) {
+    if (Object.prototype.hasOwnProperty.call(obj, key)) {
+      const value = obj[key];
+      if (value !== null && value !== undefined) {
+        result[key] = value;
+      }
+    }
+  }
 
-/**
- * safely extracts value from a nested object path
- */
-export function getNestedValue<T>(obj: Record<string, any>, path: string): T | undefined {
-  return path.split('.').reduce((acc, part) => acc && acc[part], obj) as T | undefined;
+  return result;
 }
 
 /**
- * cleans array of items by removing nullish values
+ * Safe parser for JSON strings with fallback value.
  */
-export function cleanArray<T>(arr: (T | null | undefined)[]): T[] {
-  return arr.filter((item): item is T => item !== null && item !== undefined);
-}
-
-/**
- * normalizes input to a standard string format
- */
-export function toSafeString(value: DataValue, fallback = ''): string {
-  if (value === null || value === undefined) {
+export function parseJsonSafe<T>(jsonString: string, fallback: T): T {
+  try {
+    return JSON.parse(jsonString) as T;
+  } catch (error) {
     return fallback;
   }
-  return String(value).trim();
 }
 
 /**
- * groups items by a specific key
+ * Groups array items by a specific key accessor.
  */
-export function groupBy<T>(items: T[], key: keyof T): Record<string, T[]> {
+export function groupBy<T>(items: T[], keySelector: (item: T) => string): Record<string, T[]> {
   return items.reduce((acc, item) => {
-    const groupKey = String(item[key]);
-    if (!acc[groupKey]) {
-      acc[groupKey] = [];
+    const key = keySelector(item);
+    if (!acc[key]) {
+      acc[key] = [];
     }
-    acc[groupKey].push(item);
+    acc[key].push(item);
     return acc;
   }, {} as Record<string, T[]>);
 }
