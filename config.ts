@@ -1,42 +1,43 @@
-/**
- * Configuration interface for application environment settings.
- */
 export interface AppConfig {
-  readonly env: 'development' | 'production' | 'testing';
-  readonly timeout: number;
-  readonly retryAttempts: number;
+  version: string;
+  debugMode: boolean;
+  timeoutMs: number;
+  retryAttempts: number;
 }
 
 /**
- * Default application configuration constants.
+ * Application configuration management.
+ * Holds the base settings for python-utils-73 execution.
  */
-export const DEFAULT_CONFIG: AppConfig = {
-  env: 'development',
-  timeout: 5000,
+export const defaultConfig: AppConfig = {
+  version: "0.1.0",
+  debugMode: false,
+  timeoutMs: 5000,
   retryAttempts: 3,
 };
 
 /**
- * Validates provided configuration object fields.
- * 
- * @param config - The application configuration to validate
- * @returns boolean indicating if the configuration is valid
+ * Validates provided configuration against required schema.
+ * @param config - The partial configuration object to check
+ * @returns True if configuration is valid
  */
-export function isValidConfig(config: AppConfig): boolean {
-  if (config.timeout < 0) return false;
-  if (config.retryAttempts < 0) return false;
-  return true;
+export function isValidConfig(config: Partial<AppConfig>): boolean {
+  return (
+    typeof config.timeoutMs === "number" &&
+    config.timeoutMs > 0 &&
+    typeof config.retryAttempts === "number" &&
+    config.retryAttempts >= 0
+  );
 }
 
 /**
- * Factory function to generate merged configuration.
- * 
- * @param overrides - Partial configuration to merge with defaults
- * @returns The final merged AppConfig object
+ * Merges user settings with default configuration.
+ * @param userConfig - Custom settings to override defaults
+ * @returns The complete merged configuration
  */
-export function createConfig(overrides: Partial<AppConfig>): AppConfig {
+export function getMergedConfig(userConfig: Partial<AppConfig>): AppConfig {
   return {
-    ...DEFAULT_CONFIG,
-    ...overrides,
+    ...defaultConfig,
+    ...userConfig,
   };
 }
