@@ -1,41 +1,32 @@
-export interface ProcessingConfig {
-  maxRetries: number;
-  timeoutMs: number;
-  inputSchema: string[];
+interface AppConfig {
+  port: number;
+  host: string;
+  debug: boolean;
 }
 
-export const defaultConfig: ProcessingConfig = {
-  maxRetries: 3,
-  timeoutMs: 5000,
-  inputSchema: ['id', 'payload', 'timestamp']
+const DEFAULT_CONFIG: AppConfig = {
+  port: 8080,
+  host: 'localhost',
+  debug: false,
 };
 
 /**
- * validates incoming data structure against schema
+ * Merges partial user config with defaults
  */
-export function validateInput(data: Record<string, any>, schema: string[]): boolean {
-  if (!data || typeof data !== 'object') {
-    return false;
-  }
-
-  const keys = Object.keys(data);
-  return schema.every((key) => keys.includes(key));
+export function loadConfig(userConfig: Partial<AppConfig> = {}): AppConfig {
+  return {
+    ...DEFAULT_CONFIG,
+    ...userConfig,
+  };
 }
 
 /**
- * processes batch with validation
+ * Validates environment variables for config
  */
-export function processLoop(dataList: any[], config: ProcessingConfig): void {
-  for (const item of dataList) {
-    if (!validateInput(item, config.inputSchema)) {
-      console.error('validation failure: invalid schema encountered');
-      continue;
-    }
-
-    try {
-      console.log('processing valid entry:', item.id);
-    } catch (error) {
-      console.error('processing execution failure:', error);
-    }
-  }
+export function loadFromEnv(): AppConfig {
+  return loadConfig({
+    port: process.env.PORT ? parseInt(process.env.PORT, 10) : undefined,
+    host: process.env.HOST,
+    debug: process.env.DEBUG === 'true',
+  });
 }
