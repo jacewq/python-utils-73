@@ -1,42 +1,39 @@
-/**
- * Custom error types for python-utils-73 operations
- */
-
-export class PythonExecutionError extends Error {
-  constructor(public message: string, public exitCode: number | null, public stderr: string) {
-    super(message);
-    this.name = 'PythonExecutionError';
-  }
-}
-
-export class ConfigurationError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'ConfigurationError';
-  }
-}
-
-export interface ExecutionResult {
+export interface PythonProcessResult {
+  exitCode: number;
   stdout: string;
   stderr: string;
-  exitCode: number;
+  durationMs: number;
 }
 
-export type PythonResult = ExecutionResult | PythonExecutionError;
+export interface PythonConfig {
+  executablePath: string;
+  timeoutMs: number;
+  environment: Record<string, string>;
+}
+
+export type ExecutionStatus = 'success' | 'failed' | 'timeout';
 
 /**
- * Validates process output and throws for edge cases
+ * Represents a structured response from python script execution.
  */
-export function validateResult(res: ExecutionResult): void {
-  if (res.exitCode !== 0) {
-    throw new PythonExecutionError(
-      `Process failed with exit code ${res.exitCode}`,
-      res.exitCode,
-      res.stderr
-    );
-  }
-
-  if (!res.stdout && res.stderr.includes('Error')) {
-    throw new PythonExecutionError('Process output empty with errors', res.exitCode, res.stderr);
-  }
+export interface ExecutionOutcome {
+  status: ExecutionStatus;
+  result: PythonProcessResult | null;
+  error: Error | null;
 }
+
+/**
+ * Configuration validator for utility runtime environment.
+ */
+export const validateConfig = (config: PythonConfig): boolean => {
+  return !!config.executablePath && config.timeoutMs > 0;
+};
+
+/**
+ * Default utility settings provider.
+ */
+export const getDefaultConfig = (): PythonConfig => ({
+  executablePath: 'python3',
+  timeoutMs: 5000,
+  environment: { PYTHONUNBUFFERED: '1' }
+});
