@@ -1,47 +1,35 @@
 /**
- * Utility functions for common data manipulation tasks
- * within the python-utils-73 project.
+ * Utility functions for common string and collection operations
  */
 
-export type Nullable<T> = T | null | undefined;
+export const capitalize = (str: string): string => {
+  if (!str) return '';
+  return str.charAt(0).toUpperCase() + str.slice(1);
+};
 
-/**
- * Safely extracts a nested property from an object using a dot-notation string path.
- */
-export function getNestedValue(obj: Record<string, any>, path: string): any {
-  return path.split('.').reduce((acc, key) => (acc && acc[key] !== undefined ? acc[key] : undefined), obj);
-}
+export const chunkArray = <T>(array: T[], size: number): T[][] => {
+  const chunks: T[][] = [];
+  for (let i = 0; i < array.length; i += size) {
+    chunks.push(array.slice(i, i + size));
+  }
+  return chunks;
+};
 
-/**
- * Filters out null, undefined, or empty string values from an array.
- */
-export function cleanArray<T>(items: Nullable<T>[]): T[] {
-  return items.filter((item): item is T => item !== null && item !== undefined && item !== '');
-}
+export const isNotEmpty = <T>(value: T | null | undefined): value is T => {
+  return value !== null && value !== undefined;
+};
 
-/**
- * Groups an array of objects by a specific key property.
- */
-export function groupBy<T extends Record<string, any>>(items: T[], key: keyof T): Record<string, T[]> {
-  return items.reduce((acc, item) => {
-    const group = String(item[key]);
-    if (!acc[group]) {
-      acc[group] = [];
-    }
-    acc[group].push(item);
-    return acc;
-  }, {} as Record<string, T[]>);
-}
+export const sleep = (ms: number): Promise<void> => {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+};
 
-/**
- * Creates a shallow copy of an object with only specified keys.
- */
-export function pick<T, K extends keyof T>(obj: T, keys: K[]): Pick<T, K> {
-  const result = {} as Pick<T, K>;
-  keys.forEach((key) => {
-    if (key in obj) {
-      result[key] = obj[key];
-    }
-  });
-  return result;
-}
+export const slugify = (str: string): string => {
+  return str
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)+/g, '');
+};
+
+export const getOrDefault = <T>(value: T | undefined | null, defaultValue: T): T => {
+  return value ?? defaultValue;
+};
