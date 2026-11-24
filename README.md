@@ -1,19 +1,17 @@
 # python-utils-73
 
-A high-performance TypeScript utility library designed to bridge the gap between Pythonic development patterns and strongly-typed environments. This toolkit provides drop-in replacements for common Python standard library functions, optimized for modern Node.js and browser runtimes.
-
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+A high-performance utility library designed to bridge common gaps in TypeScript development. This package provides robust, type-safe helpers for data transformation, object manipulation, and asynchronous workflows.
 
 ## Features
 
-*   **Collection Pipelines:** Chainable functional utilities for arrays that mirror `itertools` and `list` comprehensions, including `chunk`, `partition`, and `uniqueBy`.
-*   **Dict Transformations:** Robust object manipulation helpers like `pluck`, `invert`, and `deepMerge` with built-in type safety.
-*   **Type Guards:** Comprehensive runtime validation utilities for checking complex schema structures, mimicking Python's `isinstance` logic for complex types.
-*   **Zero-Dependency:** Lightweight footprint designed to keep bundle sizes minimal while ensuring full compatibility with ESNext.
+*   **Deep Object Diffing:** Effortlessly track state changes with recursive object comparison and patch generation.
+*   **Safe Async Queue:** Execute promise-based tasks with configurable concurrency limits and automatic retry logic.
+*   **Type-Guarded Parsing:** Validate and sanitize complex JSON structures using lightweight runtime schemas.
+*   **Time-Series Aggregation:** Efficiently bucket and normalize timestamped data points for analytics dashboard integration.
 
 ## Installation
 
-Install the package via your preferred package manager:
+Install the package via npm or yarn:
 
 ```bash
 npm install python-utils-73
@@ -21,22 +19,26 @@ npm install python-utils-73
 yarn add python-utils-73
 ```
 
-## Basic Usage
-
-The library is designed to be tree-shakeable. Import only the utilities you need to keep your production builds small:
+## Usage
 
 ```typescript
-import { chunk, pluck } from 'python-utils-73';
+import { asyncQueue, diffObjects } from 'python-utils-73';
 
-const data = [{ id: 1, val: 'a' }, { id: 2, val: 'b' }, { id: 3, val: 'c' }];
+// 1. Efficiently compare state changes
+const oldState = { user: { id: 1, name: 'Alice' } };
+const newState = { user: { id: 1, name: 'Bob' } };
+const changes = diffObjects(oldState, newState); // { 'user.name': 'Bob' }
 
-// Pluck specific keys
-const ids = pluck(data, 'id'); // [1, 2, 3]
-
-// Chunk data into sub-arrays
-const pages = chunk(ids, 2); // [[1, 2], [3]]
+// 2. Manage concurrent operations
+const queue = asyncQueue({ concurrency: 2 });
+queue.add(async () => {
+  const data = await fetchData('/api/endpoint');
+  console.log(data);
+});
 ```
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
