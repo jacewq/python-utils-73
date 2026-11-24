@@ -1,47 +1,45 @@
-export interface DataProcessor<T> {
-  transform: (data: unknown) => T | null;
-  validate: (data: T) => boolean;
+/**
+ * Utility to transform and sanitize data inputs
+ */
+
+export interface DataRecord {
+  id: string;
+  value: unknown;
+  timestamp: number;
 }
 
 /**
- * Safely processes input data using a provided schema or transformation logic
+ * Safely parses input data into a clean object structure
  */
-export function processData<T>(
-  input: unknown,
-  processor: DataProcessor<T>,
-  fallback: T
-): T {
-  try {
-    const transformed = processor.transform(input);
-    if (transformed !== null && processor.validate(transformed)) {
-      return transformed;
-    }
-  } catch (error) {
-    console.error('Data processing failure:', error);
+export function sanitizeData(input: unknown): DataRecord {
+  const now = Date.now();
+
+  if (typeof input === 'object' && input !== null && 'id' in input) {
+    const record = input as Record<string, unknown>;
+    return {
+      id: String(record.id),
+      value: record.value ?? null,
+      timestamp: typeof record.timestamp === 'number' ? record.timestamp : now,
+    };
   }
-  return fallback;
+
+  return {
+    id: 'unknown',
+    value: input,
+    timestamp: now,
+  };
 }
 
 /**
- * Normalizes object keys to lowercase for consistent data access
+ * Batch processor for collections of data
  */
-export function normalizeKeys<T extends Record<string, any>>(obj: T): Record<string, any> {
-  return Object.keys(obj).reduce((acc, key) => {
-    acc[key.toLowerCase()] = obj[key];
-    return acc;
-  }, {} as Record<string, any>);
+export function processBatch(data: unknown[]): DataRecord[] {
+  return data.map(sanitizeData);
 }
 
 /**
- * Batch grouping utility for array data reduction
+ * Filter records by value presence
  */
-export function groupBy<T>(arr: T[], key: keyof T): Record<string, T[]> {
-  return arr.reduce((acc, item) => {
-    const group = String(item[key]);
-    if (!acc[group]) {
-      acc[group] = [];
-    }
-    acc[group].push(item);
-    return acc;
-  }, {} as Record<string, T[]>);
+export function filterValidRecords(records: DataRecord[]): DataRecord[] {
+  return records.filter((r) => r.value !== null && r.value !== undefined);
 }
