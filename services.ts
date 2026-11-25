@@ -1,45 +1,42 @@
-/**
- * Utility to transform and sanitize data inputs
- */
-
-export interface DataRecord {
-  id: string;
-  value: unknown;
-  timestamp: number;
+interface CacheEntry<T> {
+  value: T;
+  expiry: number;
 }
 
 /**
- * Safely parses input data into a clean object structure
+ * Optimized data provider with time-based memoization
  */
-export function sanitizeData(input: unknown): DataRecord {
-  const now = Date.now();
+export class DataService {
+  private cache = new Map<string, CacheEntry<any>>();
+  private readonly TTL_MS = 60000;
 
-  if (typeof input === 'object' && input !== null && 'id' in input) {
-    const record = input as Record<string, unknown>;
-    return {
-      id: String(record.id),
-      value: record.value ?? null,
-      timestamp: typeof record.timestamp === 'number' ? record.timestamp : now,
-    };
+  public async getCachedData<T>(key: string, fetcher: () => Promise<T>): Promise<T> {
+    const now = Date.now();
+    const cached = this.cache.get(key);
+
+    if (cached && cached.expiry > now) {
+      return cached.value;
+    }
+
+    try {
+      const value = await fetcher();
+      this.cache.set(key, {
+        value,
+        expiry: now + this.TTL_MS,
+      });
+      return value;
+    } catch (error) {
+      console.error(`Failed to fetch data for key: ${key}`, error);
+      throw error;
+    }
   }
 
-  return {
-    id: 'unknown',
-    value: input,
-    timestamp: now,
-  };
-}
-
-/**
- * Batch processor for collections of data
- */
-export function processBatch(data: unknown[]): DataRecord[] {
-  return data.map(sanitizeData);
-}
-
-/**
- * Filter records by value presence
- */
-export function filterValidRecords(records: DataRecord[]): DataRecord[] {
-  return records.filter((r) => r.value !== null && r.value !== undefined);
+  public clearExpired(): void {
+    const now = Date.now();
+    for (const [key, entry] of this.cache.entries()) {
+      if (entry.expiry <= now) {
+        this.cache.delete(key);
+      }
+    }
+  }
 }
