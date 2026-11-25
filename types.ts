@@ -1,39 +1,45 @@
-export interface PythonProcessResult {
-  exitCode: number;
+/**
+ * Core interface definitions for python-utils-73
+ */
+
+export interface PythonRuntimeConfig {
+  executablePath: string;
+  version: string;
+  envVars: Record<string, string>;
+  timeoutMs: number;
+}
+
+export interface ProcessResult {
   stdout: string;
   stderr: string;
+  exitCode: number;
   durationMs: number;
 }
 
-export interface PythonConfig {
-  executablePath: string;
-  timeoutMs: number;
-  environment: Record<string, string>;
+export interface ExecutionOptions {
+  cwd?: string;
+  captureOutput?: boolean;
+  env?: Record<string, string>;
 }
 
-export type ExecutionStatus = 'success' | 'failed' | 'timeout';
+export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
-/**
- * Represents a structured response from python script execution.
- */
-export interface ExecutionOutcome {
-  status: ExecutionStatus;
-  result: PythonProcessResult | null;
-  error: Error | null;
+export interface LoggerConfig {
+  level: LogLevel;
+  showTimestamp: boolean;
+  prefix?: string;
 }
 
-/**
- * Configuration validator for utility runtime environment.
- */
-export const validateConfig = (config: PythonConfig): boolean => {
-  return !!config.executablePath && config.timeoutMs > 0;
-};
+export interface TaskManifest {
+  id: string;
+  scriptPath: string;
+  args: string[];
+  retries: number;
+  retryDelayMs: number;
+}
 
-/**
- * Default utility settings provider.
- */
-export const getDefaultConfig = (): PythonConfig => ({
-  executablePath: 'python3',
-  timeoutMs: 5000,
-  environment: { PYTHONUNBUFFERED: '1' }
-});
+export interface InternalState {
+  activeProcesses: Set<string>;
+  lastExecutionTimestamp: number;
+  isInitialized: boolean;
+}
