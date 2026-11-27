@@ -1,38 +1,38 @@
+import * as fs from 'fs';
+import * as path from 'path';
+
+interface LoggerOptions {
+  logDir: string;
+  maxSizeMB: number;
+  maxFiles: number;
+}
+
 /**
- * Utility functions for common data manipulation tasks
+ * Configures a basic rotation-based file logger
  */
-
-export const sleep = (ms: number): Promise<void> => 
-  new Promise((resolve) => setTimeout(resolve, ms));
-
-export const chunk = <T>(array: T[], size: number): T[][] => {
-  const result: T[][] = [];
-  for (let i = 0; i < array.length; i += size) {
-    result.push(array.slice(i, i + size));
+export const setupLogger = (options: LoggerOptions) => {
+  if (!fs.existsSync(options.logDir)) {
+    fs.mkdirSync(options.logDir, { recursive: true });
   }
-  return result;
-};
 
-export const getOrElse = <T>(value: T | null | undefined, defaultValue: T): T => {
-  return value !== null && value !== undefined ? value : defaultValue;
-};
+  const logFile = path.join(options.logDir, 'app.log');
 
-export const debounce = <F extends (...args: any[]) => any>(fn: F, delay: number) => {
-  let timeoutId: ReturnType<typeof setTimeout>;
-  return (...args: Parameters<F>) => {
-    clearTimeout(timeoutId);
-    timeoutId = setTimeout(() => fn(...args), delay);
+  return (message: string) => {
+    const timestamp = new Date().toISOString();
+    const logEntry = `[${timestamp}] ${message}\n`;
+
+    if (fs.existsSync(logFile)) {
+      const stats = fs.statSync(logFile);
+      if (stats.size > options.maxSizeMB * 1024 * 1024) {
+        for (let i = options.maxFiles - 1; i > 0; i--) {
+          const oldFile = path.join(options.logDir, `app.${i}.log`);
+          const newFile = path.join(options.logDir, `app.${i - 1}.log`);
+          if (fs.existsSync(newFile)) fs.renameSync(newFile, oldFile);
+        }
+        fs.renameSync(logFile, path.join(options.logDir, 'app.1.log'));
+      }
+    }
+
+    fs.appendFileSync(logFile, logEntry);
   };
-};
-
-export const isNotEmpty = <T>(array: T[] | null | undefined): boolean => {
-  return Array.isArray(array) && array.length > 0;
-};
-
-export const pick = <T, K extends keyof T>(obj: T, keys: K[]): Pick<T, K> => {
-  const result = {} as Pick<T, K>;
-  keys.forEach((key) => {
-    if (key in obj) result[key] = obj[key];
-  });
-  return result;
 };
